@@ -33,7 +33,7 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 | T-002 / T-003 | Identity, tenancy, RLS, roles, invitations, audit | P0 | | ✅ |
 | T-110 | Email verification + password reset (hashed single-use tokens; SMTP from env or logged; `TAXIOS_DEV_TOKENS=1` returns tokens in tests) | P0 | tests: unverified can't create a business; reset token single-use | ✅ `TestSelfServiceOnboarding`, `TestPasswordReset` (2026-10-11) |
 | T-112 | Long-lived mobile sessions + refresh/rotation + "sign out everywhere" | P0 | | ⬜ |
-| T-113 | Remove/deactivate staff member; session revocation on removal | P0 | | ⬜ |
+| T-113 | `DELETE /members/{userID}`: staff only, owners only by owners, never the last owner or yourself; sessions revoked when they have no other business; audited | P0 | | ✅ `TestStaffRemoval` |
 | T-005 | Per-account login limiting in-app | P1 | 11th attempt → 429 | 🟡 |
 | T-006 | MFA (TOTP) for platform roles | P1 | | ⬜ |
 | T-020 | Reason-coded, time-limited, audited support access | P1 | | ⬜ |
@@ -47,7 +47,7 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 | T-123 | Resumable onboarding checklist API (computed from rows) + console Setup tab (business details card, checklist, submit/go-live) + platform approve/reject | P0 | checklist reflects DB state; no client-side-only progress | ✅ `GET /onboarding`; UI deployed |
 | T-124 | Platform console v2: tenant directory + search/filter ✅, verification queue ✅, tenant detail (profile ✅; plan/usage/audit ⬜), global audit log ⬜, announcements ⬜, manual email verification ✅ | P0 | live screens call real endpoints | 🟡 |
 | T-125 | Platform feature flags (global + per-tenant overrides) read through the entitlement hook | P1 | | ⬜ |
-| T-126 | Operator dashboard additions: customers, settings (profile/locale), branding tab (reads T-007), subscription tab (reads M10), exports (CSV) | P0 | | ⬜ |
+| T-126 | Operator dashboard additions: customers tab (search, aggregates) ✅, CSV exports of customers + bookings (`reports.read`) ✅, settings/profile ✅ (T-123); branding tab (T-007) ⬜, subscription tab (M10) ⬜ | P0 | | 🟡 `TestCustomersAndExports` |
 | T-127 | CSV import for drivers and vehicles with validation report + duplicate handling | P1 | | ⬜ |
 | T-128 | i18n foundation: UI strings externalised; en/si/ta switch; per-tenant default language; phone validation per country | P1 | | ⬜ |
 

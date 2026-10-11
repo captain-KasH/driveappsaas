@@ -92,3 +92,15 @@ export async function openFile(path: string) {
   window.open(url, "_blank", "noopener");
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
+
+/** Downloads an authenticated file (CSV export) to the user's machine. */
+export async function downloadFile(path: string, fallbackName: string) {
+  const t = token.get();
+  const res = await fetch(path, { headers: { ...(t && { Authorization: `Bearer ${t}` }) } });
+  if (!res.ok) throw new ApiError(res.status, "download_failed", "Couldn't download the file.");
+  const name = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}

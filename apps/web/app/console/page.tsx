@@ -13,6 +13,7 @@ import Vehicles from "@/components/console/Vehicles";
 import Bookings from "@/components/console/Bookings";
 import Dispatch from "@/components/console/Dispatch";
 import Team from "@/components/console/Team";
+import Customers from "@/components/console/Customers";
 
 const TABS = [
   { id: "overview", label: "Overview", perm: "tenant.read" },
@@ -20,6 +21,7 @@ const TABS = [
   { id: "bookings", label: "Bookings", perm: "booking.read" },
   { id: "drivers", label: "Drivers", perm: "fleet.read" },
   { id: "vehicles", label: "Vehicles", perm: "fleet.read" },
+  { id: "customers", label: "Customers", perm: "booking.read" },
   { id: "setup", label: "Setup", perm: "tenant.read" },
   { id: "team", label: "Team", perm: "staff.read" },
 ] as const;
@@ -79,6 +81,7 @@ function Console() {
       {active === "bookings" && <Bookings ctx={ctx} />}
       {active === "dispatch" && <Dispatch ctx={ctx} />}
       {active === "team" && <Team ctx={ctx} />}
+      {active === "customers" && <Customers ctx={ctx} />}
     </>
   );
 }

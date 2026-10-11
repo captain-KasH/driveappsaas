@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, km, mins, money, when } from "@/lib/api";
+import { downloadFile } from "@/lib/api";
 import { Badge, ErrorBox, Spinner, useAction } from "@/components/ui";
 import FareLines, { Breakdown } from "@/components/FareLines";
 import { Ctx, can } from "./ctx";
@@ -27,6 +28,7 @@ export default function Bookings({ ctx }: { ctx: Ctx }) {
       <div className="card">
         <div className="row" style={{ marginBottom: 8 }}>
           <h2 style={{ margin: 0 }}>Bookings</h2>
+          {can(ctx.role, "reports.read") && <button className="btn small" onClick={() => downloadFile(`${base}/exports/bookings.csv`, "bookings.csv").catch(() => {})}>Export CSV</button>}
           <select aria-label="Filter by status" className="right" style={{ width: "auto" }} value={status} onChange={(e) => setStatus(e.target.value)}>
             {STATUSES.map((s) => <option key={s} value={s}>{s || "All statuses"}</option>)}
           </select>

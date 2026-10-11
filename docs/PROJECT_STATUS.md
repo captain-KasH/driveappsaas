@@ -6,7 +6,7 @@ _Last updated: 2026-10-11_
 Master prompt v2 adopted 2026-10-11 (`MASTER_PROMPT.md`, D-020…D-025). Audit: `PROJECT_AUDIT.md`;
 per-section status: `FEATURE_STATUS.md`; roadmap: `IMPLEMENTATION_PLAN.md` (M1–M14).
 The ride engine is verified end to end (`TestMVPJourney`) and the web app is live at https://taxios.packline.lk.
-**Milestone now: M4.** Done: T-110, T-120, T-121, T-123; T-124 partial. **Next task: T-122 (verification document uploads — needs storage decision K-020), then T-126 (customers/settings/exports), T-113, T-112.**
+**Milestone now: M4.** Done: T-110, T-120, T-121, T-123; T-124 partial. Also done: T-122, T-130 uploads, T-113 staff removal, T-126 customers + CSV exports. **Next task: T-112 (long-lived mobile sessions + sign-out-everywhere), then T-007 branding → M7 Expo apps.**
 
 Baseline before M1 changes (2026-10-11, `make test-remote`, PostGIS 16-3.4 + Go 1.26 on the server):
 `ok internal/fare 0.014s · ok internal/server 14.741s` (18 tests, all pass).
@@ -89,6 +89,7 @@ search/filter, business detail, manual email verification. Suite: 23 tests green
 Live verification 2026-10-11 after `Deploy succeeded: f92957e` (suite green on the server first): `/signup/ /verify/ /forgot/ /reset/ /start/ /admin/` → 200 and `/signup/` renders without console errors; `register` with a bad email → 422 `invalid_email`; `verify-email` bad token → 404 `invalid_token`; `forgot-password` unknown email → 200 `{sent}`; `POST /v1/businesses` unauthenticated → 401; packline.lk → 200. Signed-in walk-through still pending (K-016, needs the owner's super-admin login).
 
 ## Change log
+- 2026-10-11 — T-122/T-130 files `aa15eb4` → `Deploy succeeded: aa15eb4`, volume `taxios_files` present, API healthy; anonymous hits on the new endpoints → 401/404. T-113 + T-126 customers/exports (next deploy).
 - 2026-10-11 — D-026 docker naming: `Deploy succeeded: 5a15cc3`; server shows only `taxios-api`, `taxios-db` (+ `taxios_internal`, `taxios_db`, `taxios-api:latest`, `taxios-test_*`) beside `voiceai-*` and `packlink-*`.
 - 2026-10-11 — M1 (audit, competitor matrix, web typecheck/build in the test stack) `4ae9940`, `f87592a`; M4 onboarding API `12bdb24` + web `f92957e`.
 - 2026-10-11 — Phase 1 core mobility (T-010…T-017), server test runner, Docker deploy, DNS, nginx vhost. Commit `5c57015`+.

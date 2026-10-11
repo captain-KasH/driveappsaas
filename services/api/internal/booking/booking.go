@@ -66,6 +66,10 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.Handle("POST "+p+"/bookings/{bookingID}/cancel", t.TenantRoute(tenancy.PermDispatch, true, s.staffCancel))
 	mux.Handle("GET "+p+"/dispatch/board", t.TenantRoute(tenancy.PermDispatch, false, s.dispatchBoard))
 	mux.Handle("GET "+p+"/reports/summary", t.TenantRoute(tenancy.PermReportsRead, false, s.summary))
+	mux.Handle("GET "+p+"/customers", t.TenantRoute(tenancy.PermBookingRead, false, s.listCustomers))
+	canExport := func(m tenancy.Member) bool { return tenancy.RoleHas(m.Role, tenancy.PermReportsRead) }
+	mux.Handle("GET "+p+"/exports/customers.csv", t.MemberRouteRaw(canExport, s.exportCustomers))
+	mux.Handle("GET "+p+"/exports/bookings.csv", t.MemberRouteRaw(canExport, s.exportBookings))
 }
 
 func invalid(code, format string, args ...any) error {

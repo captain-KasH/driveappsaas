@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, when } from "@/lib/api";
+import { useMe } from "@/components/ui";
 import { ErrorBox, Spinner, useAction } from "@/components/ui";
 import { CopyLink } from "@/components/CopyLink";
 import { Ctx, can } from "./ctx";
@@ -14,6 +15,7 @@ export default function Team({ ctx }: { ctx: Ctx }) {
   const [f, setF] = useState({ email: "", role: "dispatcher" });
   const [link, setLink] = useState("");
   const act = useAction();
+  const { me } = useMe();
   const load = useCallback(() => api<{ members: Member[] }>("GET", `${base}/members`).then((r) => setMembers(r.members)).catch(act.setError), [base, act.setError]);
   useEffect(() => { load(); }, [load]);
   const roles = ctx.role === "owner" ? ["owner", "admin", "dispatcher", "finance", "viewer"] : ["admin", "dispatcher", "finance", "viewer"];
@@ -40,13 +42,19 @@ export default function Team({ ctx }: { ctx: Ctx }) {
         <h2>Team</h2>
         {!members ? <Spinner /> : (
           <table className="list">
-            <thead><tr><th>Name</th><th>Role</th><th>Since</th></tr></thead>
+            <thead><tr><th>Name</th><th>Role</th><th>Since</th><th></th></tr></thead>
             <tbody>
               {members.map((m) => (
                 <tr key={m.userId}>
                   <td data-label="Name"><strong>{m.fullName}</strong><div className="muted small">{m.email}</div></td>
                   <td data-label="Role">{m.role}</td>
                   <td data-label="Since">{when(m.since)}</td>
+                  <td>{can(ctx.role, "staff.manage") && m.userId !== me?.user.id && (m.role !== "owner" || ctx.role === "owner") && (
+                    <button className="btn small danger" disabled={act.busy} onClick={() => {
+                      if (!confirm(`Remove ${m.fullName} from this business? They lose access immediately.`)) return;
+                      act.run(async () => { await api("DELETE", `${base}/members/${m.userId}`); await load(); });
+                    }}>Remove</button>
+                  )}</td>
                 </tr>
               ))}
             </tbody>

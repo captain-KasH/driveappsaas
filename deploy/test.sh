@@ -3,6 +3,8 @@
 #   deploy/test.sh                 # all tests
 #   TEST_ARGS="-run Booking -v" deploy/test.sh
 #   SKIP_WEB=1 deploy/test.sh       # Go only (API iteration)
+# Project name: `taxios-test` here (deploy.sh); `make test-remote` overrides COMPOSE_PROJECT_NAME=taxios-ci so the
+# two never share a stack. Never run two of the SAME project at once: the exit trap tears it down.
 set -euo pipefail
 cd "$(dirname "$0")"
 # Keep the cache volumes (gomod/gobuild/webmods/webnext); only the throwaway DB goes.

@@ -472,3 +472,50 @@ func (s *Service) platformTenantDetail(r *http.Request, tx pgx.Tx, p identity.Pr
 	}
 	return Result{http.StatusOK, map[string]any{"tenant": t, "documents": docs, "owners": owners}}, err
 }
+
+// removeMember offboards staff (T-113). Drivers and passengers are managed elsewhere; an owner
+// can only be removed by another owner, never the last one, and nobody removes themselves.
+func (s *Service) removeMember(r *http.Request, tx pgx.Tx, m Member) (Result, error) {
+	uid := strings.ToLower(r.PathValue("userID"))
+	if !uuidRe.MatchString(uid) {
+		return Result{}, httpx.ErrNotFound
+	}
+	if uid == m.UserID {
+		return Result{}, httpx.Errorf(http.StatusConflict, "cannot_remove_self", "ask another owner or admin to remove you")
+	}
+	var role string
+	err := tx.QueryRow(r.Context(), `SELECT role FROM tenant_memberships WHERE tenant_id=$1 AND user_id=$2 FOR UPDATE`, m.TenantID, uid).Scan(&role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Result{}, httpx.ErrNotFound
+	}
+	if err != nil {
+		return Result{}, err
+	}
+	if role == "driver" || role == "passenger" {
+		return Result{}, httpx.Errorf(http.StatusConflict, "not_staff", "drivers and passengers are managed from their own pages")
+	}
+	if role == "owner" {
+		if m.Role != "owner" {
+			return Result{}, httpx.ErrForbidden
+		}
+		var owners int
+		if err := tx.QueryRow(r.Context(), `SELECT count(*) FROM tenant_memberships WHERE tenant_id=$1 AND role='owner'`, m.TenantID).Scan(&owners); err != nil {
+			return Result{}, err
+		}
+		if owners < 2 {
+			return Result{}, httpx.Errorf(http.StatusConflict, "last_owner", "a business must keep at least one owner")
+		}
+	}
+	if _, err := tx.Exec(r.Context(), `DELETE FROM tenant_memberships WHERE tenant_id=$1 AND user_id=$2`, m.TenantID, uid); err != nil {
+		return Result{}, err
+	}
+	// Sign them out of this business immediately: sessions are global, so revoke only when they
+	// have no other membership (otherwise they simply lose this tenant on their next request).
+	if _, err := tx.Exec(r.Context(), `UPDATE sessions SET revoked_at=now() WHERE revoked_at IS NULL AND user_id=$1
+		AND NOT EXISTS (SELECT 1 FROM tenant_memberships WHERE user_id=$1) AND NOT EXISTS (SELECT 1 FROM users WHERE id=$1 AND platform_role IS NOT NULL)`, uid); err != nil {
+		return Result{}, err
+	}
+	err = audit.Record(r.Context(), tx, audit.Event{TenantID: m.TenantID, ActorUserID: m.UserID, Action: "member.removed",
+		TargetType: "user", TargetID: uid, Metadata: map[string]any{"role": role}})
+	return Result{http.StatusOK, map[string]any{"removed": uid}}, err
+}

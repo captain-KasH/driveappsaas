@@ -16,13 +16,13 @@ Evidence conventions: test names live in `services/api/internal/server/*_test.go
 | 7 | Rate limiting / brute force | 🟡 | per-IP at edge only | T-005 |
 | 7 | Phone OTP | ⬜ | | T-041 ⛔ |
 | 7 | Roles: owner/admin/dispatcher/finance/viewer/driver/passenger; platform super_admin/support | ✅ | `permissions.go`, `TestOnboardingJourney` | fleet manager role → T-122 |
-| 7 | Invitations, staff onboarding/offboarding | 🟡 | invite ✅; offboarding (remove member) ⬜ | T-113 |
-| 8 | Self-service registration → business → verification → plan → checklist → publish | 🟡 | register/verify/business/checklist/submit/approve ✅ (`TestSelfServiceOnboarding`); document upload ⬜ (T-122), plan step ⬜ (M10) | T-122 |
+| 7 | Invitations, staff onboarding/offboarding | ✅ | invite ✅; remove ✅ `TestStaffRemoval` | — |
+| 8 | Self-service registration → business → verification → plan → checklist → publish | 🟡 | register/verify/business/documents/checklist/submit/approve ✅ (`TestSelfServiceOnboarding`, `TestBusinessDocumentsRequiredForSelfService`); plan step ⬜ (M10) | M10 |
 | 8 | CSV import | ⬜ | | T-127 |
 | 9 | Platform console | 🟡 | live `/admin/`: verification queue, search/filter, business detail, create, status, manual email verification. No plans/usage/flags/audit/announcements yet | T-124, T-125 |
-| 10 | Operator dashboard | 🟡 | live `/console/`: overview, setup, drivers, vehicles, bookings, dispatch, team. Missing customers, promotions, branding, integrations, subscription, exports, support | T-126 |
+| 10 | Operator dashboard | 🟡 | live `/console/`: overview, setup (details, documents, checklist), drivers, vehicles, bookings (+CSV), dispatch, customers (+CSV), team (invite/remove). Missing promotions, branding, integrations, subscription, support | T-007, M10 |
 | 11 | Drivers: profile, approval, docs expiry, vehicle assignment, availability, suspension | ✅ | `TestMVPJourney`, `TestExpiredDocumentsBlockDispatch` | — |
-| 11 | Driver document **files**, expiry alerts, earnings/commission, shifts, performance | ⬜ | | T-130, T-132, T-134 |
+| 11 | Driver document **files** ✅ (`TestFileUploadsAndAccess`); expiry alerts, earnings/commission, shifts, performance ⬜ | 🟡 | | T-130, T-132, T-134 |
 | 11 | Vehicles: details, category, status, driver assignment | ✅ | `TestMVPJourney` | — |
 | 11 | Vehicle docs, inspection/service dates, maintenance state/history, capacity/accessibility | ⬜ | | T-131 |
 | 12 | Passenger profile, trip history, receipts, ratings | ✅ | `TestMVPJourney` steps 14–15 | — |

@@ -40,6 +40,9 @@ Rate limits: enforced at the edge (see end of file); none in-app yet. Audit colu
 | `GET /v1/tenants/{id}` | member · `tenant.read` | tenant | — | 200 `{tenant,myRole}` | 404 non-member | |
 | `PATCH /v1/tenants/{id}` | `tenant.manage` | tenant, write | any of `{name,legalName,registrationNo,taxNo,contactEmail,contactPhone,billingEmail,address,timezone,currency,language}` (`""` clears an optional field) | 200 `{tenant}` | 422 `invalid_<field>`/`invalid_input`, 403 `tenant_inactive` | ✓ |
 | `POST /v1/tenants/{id}/onboarding/complete` | owner | tenant, write | — | 200 `{tenant,checklist}` — verified tenant → `active`; self-registered → `pending_verification` (D-021) | 409 `onboarding_incomplete` (lists missing steps) / `invalid_transition` | ✓ |
+| `DELETE /v1/tenants/{id}/members/{userId}` | `staff.manage` (owner to remove an owner) | tenant, write | — | 200 `{removed}` | 409 `cannot_remove_self`/`last_owner`/`not_staff`, 403, 404 | ✓ |
+| `GET /v1/tenants/{id}/customers` | `booking.read` | tenant | `?q=` name/phone | 200 `{customers[{…,bookings,completed,cancelled,spentMinor,lastBookingAt}]}` (≤500) | | |
+| `GET /v1/tenants/{id}/exports/customers.csv` · `…/exports/bookings.csv` | `reports.read` | tenant | bookings: `?status=&from=YYYY-MM-DD&to=` | 200 `text/csv` attachment (money as decimals, UTC RFC 3339) | 403 | |
 | `GET /v1/tenants/{id}/members` | `staff.read` | tenant | — | 200 `{members[]}` | | |
 | `POST /v1/tenants/{id}/invitations` | `staff.manage` (owner for role=owner) | tenant, write | `{email,role}` | 201 `{invitation}` | 422 `invalid_email`/`invalid_role` | ✓ |
 | `GET /v1/tenants/{id}/audit-events` | `audit.read` | tenant | — | 200 `{events[]}` (latest 100) | | |
