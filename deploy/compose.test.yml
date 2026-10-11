@@ -1,0 +1,36 @@
+# Throwaway test stack: fresh PostGIS on tmpfs + Go test runner. Used by deploy/test.sh.
+name: taxios-test
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: owner
+      POSTGRES_PASSWORD: owner
+      POSTGRES_DB: taxios_test
+      APP_DB_PASSWORD: test_app
+    tmpfs: [/var/lib/postgresql/data]
+    volumes: [./initdb:/docker-entrypoint-initdb.d:ro]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U owner -d taxios_test"]
+      interval: 2s
+      retries: 30
+
+  test:
+    image: golang:1.26-alpine
+    working_dir: /src
+    environment:
+      CGO_ENABLED: "0"
+      TAXIOS_TEST_MIGRATE_URL: postgres://owner:owner@db:5432/taxios_test?sslmode=disable
+      TAXIOS_TEST_DATABASE_URL: postgres://taxios_app:test_app@db:5432/taxios_test?sslmode=disable
+    volumes:
+      - ../services/api:/src
+      - gomod:/go/pkg/mod
+      - gobuild:/root/.cache/go-build
+    command: ["sh", "-c", "go vet ./... && test -z \"$$(gofmt -l .)\" && go test -count=1 ${TEST_ARGS:-} ./..."]
+    depends_on:
+      db: { condition: service_healthy }
+
+volumes:
+  gomod:
+  gobuild:

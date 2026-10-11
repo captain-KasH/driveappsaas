@@ -82,7 +82,7 @@ END $$;
 GRANT USAGE ON SCHEMA public TO %[1]s;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO %[1]s;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO %[1]s;
-REVOKE UPDATE, DELETE, TRUNCATE ON audit_events FROM %[1]s;
+REVOKE UPDATE, DELETE, TRUNCATE ON audit_events, booking_events, payments, fare_rule_versions FROM %[1]s;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON schema_migrations FROM %[1]s;
 `, AppRole))
 	return err

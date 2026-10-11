@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/captain-KasH/driveappsaas/services/api/internal/booking"
 	"github.com/captain-KasH/driveappsaas/services/api/internal/db"
 	"github.com/captain-KasH/driveappsaas/services/api/internal/identity"
 	"github.com/captain-KasH/driveappsaas/services/api/internal/server"
@@ -26,6 +27,7 @@ var (
 	ownerPool *pgxpool.Pool
 	appPool   *pgxpool.Pool
 	srv       *httptest.Server
+	bookings  *booking.Service
 )
 
 func TestMain(m *testing.M) {
@@ -50,7 +52,8 @@ func TestMain(m *testing.M) {
 	if bypass {
 		panic("TAXIOS_TEST_DATABASE_URL must not bypass RLS, or isolation tests prove nothing")
 	}
-	srv = httptest.NewServer(server.New(appPool))
+	bookings = server.NewBookings(appPool)
+	srv = httptest.NewServer(server.New(appPool, bookings))
 	code := m.Run()
 	srv.Close()
 	os.Exit(code)
@@ -119,14 +122,15 @@ func superAdminToken(t *testing.T) string {
 	return r.Body["token"].(string)
 }
 
-type tenantFixture struct{ ID, OwnerToken, OwnerEmail string }
+type tenantFixture struct{ ID, Slug, OwnerToken, OwnerEmail, ZoneID, CarID, TukID string }
 
 // newTenant provisions a tenant as a super admin and has its owner accept the invite.
 func newTenant(t *testing.T, admin string) tenantFixture {
 	t.Helper()
 	f := tenantFixture{OwnerEmail: uniq("owner-") + "@taxios.test"}
+	f.Slug = uniq("fleet-")
 	r := call(t, "POST", "/v1/platform/tenants", admin, map[string]string{
-		"slug": uniq("fleet-"), "name": "Colombo Cabs", "businessType": "taxi", "ownerEmail": f.OwnerEmail})
+		"slug": f.Slug, "name": "Colombo Cabs", "businessType": "taxi", "ownerEmail": f.OwnerEmail})
 	if r.Status != 201 {
 		t.Fatalf("create tenant: %d %v", r.Status, r.Body)
 	}
@@ -156,6 +160,10 @@ func TestOnboardingJourney(t *testing.T) {
 	if r := call(t, "PATCH", "/v1/tenants/"+a.ID, a.OwnerToken, map[string]string{"name": "Colombo Cabs Ltd"}); r.Status != 200 {
 		t.Fatalf("rename: %d %v", r.Status, r.Body)
 	}
+	if r := call(t, "POST", "/v1/tenants/"+a.ID+"/onboarding/complete", a.OwnerToken, nil); errCode(r) != "onboarding_incomplete" {
+		t.Fatalf("onboarding without pricing should be refused: %d %v", r.Status, r.Body)
+	}
+	configurePricing(t, &a)
 	r := call(t, "POST", "/v1/tenants/"+a.ID+"/onboarding/complete", a.OwnerToken, nil)
 	if r.Status != 200 || dig(r.Body, "tenant", "status") != "active" {
 		t.Fatalf("complete onboarding: %d %v", r.Status, r.Body)
@@ -188,7 +196,7 @@ func TestOnboardingJourney(t *testing.T) {
 
 	// Every step above is in the tenant's audit trail.
 	r = call(t, "GET", "/v1/tenants/"+a.ID+"/audit-events", a.OwnerToken, nil)
-	want := map[string]bool{"tenant.created": false, "invitation.accepted": false, "tenant.updated": false, "tenant.onboarding_completed": false, "invitation.created": false}
+	want := map[string]bool{"zone.created": false, "fare_rule.published": false, "tenant.created": false, "invitation.accepted": false, "tenant.updated": false, "tenant.onboarding_completed": false, "invitation.created": false}
 	for _, e := range r.Body["events"].([]any) {
 		want[e.(map[string]any)["action"].(string)] = true
 	}

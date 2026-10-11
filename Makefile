@@ -7,7 +7,7 @@ DEV_DB := taxios_dev
 # Local-only password for the taxios_app role.
 APP_PW := taxios_app_dev
 
-.PHONY: app-role test test-db dev-db migrate serve vet
+.PHONY: app-role test test-db dev-db migrate serve vet test-remote
 
 vet:
 	cd $(API) && go vet ./... && test -z "$$(gofmt -l .)"
@@ -33,3 +33,10 @@ migrate: dev-db
 
 serve:
 	cd $(API) && DATABASE_URL="postgres://taxios_app:$(APP_PW)@$(PGHOST)/$(DEV_DB)" go run ./cmd/taxios-api serve
+
+# Run the suite on the packline server (Docker + PostGIS) from the local working tree.
+SERVER := appuser@164.68.97.219
+REMOTE_CI := /data/apps/taxios-ci
+test-remote:
+	rsync -az --delete --exclude .git --exclude 'deploy/.env' ./ $(SERVER):$(REMOTE_CI)/
+	ssh $(SERVER) 'cd $(REMOTE_CI) && TEST_ARGS="$(TEST_ARGS)" deploy/test.sh'

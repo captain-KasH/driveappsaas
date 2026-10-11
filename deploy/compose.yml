@@ -1,0 +1,56 @@
+# Production stack for taxios.packline.lk on the packline server (/data/apps/taxios).
+# Run via deploy/deploy.sh. Secrets come from deploy/.env (never committed; see deploy/.env.example).
+# The API joins packline's nginx network as `taxios-api`; no host ports are published.
+name: taxios
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: taxios_owner
+      POSTGRES_PASSWORD: ${OWNER_DB_PASSWORD:?}
+      POSTGRES_DB: taxios
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?}
+    volumes:
+      - db:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taxios_owner -d taxios"]
+      interval: 5s
+      retries: 20
+    networks: [internal]
+
+  migrate:
+    build: ../services/api
+    image: taxios-api:latest
+    command: ["migrate"]
+    environment:
+      MIGRATE_DATABASE_URL: postgres://taxios_owner:${OWNER_DB_PASSWORD}@db:5432/taxios?sslmode=disable
+    depends_on:
+      db: { condition: service_healthy }
+    networks: [internal]
+    restart: "no"
+
+  api:
+    image: taxios-api:latest
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://taxios_app:${APP_DB_PASSWORD}@db:5432/taxios?sslmode=disable
+      ADDR: ":8080"
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    networks:
+      internal: {}
+      edge:
+        aliases: [taxios-api]
+
+volumes:
+  db:
+
+networks:
+  internal: {}
+  edge:
+    name: packlink_packlink
+    external: true

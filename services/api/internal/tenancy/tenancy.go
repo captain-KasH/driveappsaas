@@ -44,6 +44,15 @@ var uuidRe = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4
 // TenantRoute authenticates, resolves membership under RLS, checks the
 // permission, blocks writes on inactive tenants, and runs h in one transaction.
 func (s *Service) TenantRoute(perm Permission, write bool, h func(*http.Request, pgx.Tx, Member) (Result, error)) httpx.Handler {
+	return s.MemberRoute(func(m Member) bool { return RoleHas(m.Role, perm) }, write, h)
+}
+
+// RoleRoute is TenantRoute for one exact role (the driver and passenger apps).
+func (s *Service) RoleRoute(role string, write bool, h func(*http.Request, pgx.Tx, Member) (Result, error)) httpx.Handler {
+	return s.MemberRoute(func(m Member) bool { return m.Role == role }, write, h)
+}
+
+func (s *Service) MemberRoute(allow func(Member) bool, write bool, h func(*http.Request, pgx.Tx, Member) (Result, error)) httpx.Handler {
 	return identity.RequireAuth(s.Pool, func(w http.ResponseWriter, r *http.Request) error {
 		p, _ := identity.FromContext(r.Context())
 		tid := strings.ToLower(r.PathValue("tenantID"))
@@ -62,7 +71,7 @@ func (s *Service) TenantRoute(perm Permission, write bool, h func(*http.Request,
 			if err != nil {
 				return err
 			}
-			if !RoleHas(m.Role, perm) {
+			if !allow(m) {
 				return httpx.ErrForbidden
 			}
 			if write && (m.TenantStatus == "suspended" || m.TenantStatus == "closed") {
@@ -76,6 +85,30 @@ func (s *Service) TenantRoute(perm Permission, write bool, h func(*http.Request,
 		}
 		return httpx.WriteJSON(w, res.Status, res.Body)
 	})
+}
+
+// PublicTenant resolves an active tenant by slug for unauthenticated brand
+// endpoints. Platform scope is used for this single lookup only.
+func PublicTenant(ctx context.Context, pool *pgxpool.Pool, slug string) (id, name string, err error) {
+	var status string
+	err = db.InTx(ctx, pool, db.Scope{Platform: true}, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT id, name, status FROM tenants WHERE slug = $1`, strings.ToLower(slug)).Scan(&id, &name, &status)
+	})
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && status != "active") {
+		return "", "", httpx.ErrNotFound
+	}
+	return id, name, err
+}
+
+// UUID reports whether s is a canonical lowercase UUID (path parameter guard).
+func UUID(s string) bool { return uuidRe.MatchString(s) }
+
+// PgCode returns the Postgres SQLSTATE of err, or "".
+func PgCode(err error) string { return pgCode(err) }
+
+// CreateDriverInvitation invites the person behind an existing driver record.
+func CreateDriverInvitation(ctx context.Context, tx pgx.Tx, tenantID, email, invitedBy, driverID string) (InvitationDTO, error) {
+	return createInvitation(ctx, tx, tenantID, email, "driver", invitedBy, driverID)
 }
 
 // PlatformRoute runs h in cross-tenant platform scope for the given platform roles only.
@@ -127,7 +160,7 @@ type InvitationDTO struct {
 	ExpiresAt time.Time `json:"expiresAt"`
 }
 
-func createInvitation(ctx context.Context, tx pgx.Tx, tenantID, email, role, invitedBy string) (InvitationDTO, error) {
+func createInvitation(ctx context.Context, tx pgx.Tx, tenantID, email, role, invitedBy, driverID string) (InvitationDTO, error) {
 	email = strings.TrimSpace(email)
 	if !strings.Contains(email, "@") || len(email) > 254 {
 		return InvitationDTO{}, httpx.Errorf(http.StatusUnprocessableEntity, "invalid_email", "a valid email is required")
@@ -137,8 +170,8 @@ func createInvitation(ctx context.Context, tx pgx.Tx, tenantID, email, role, inv
 	}
 	token, hash := identity.NewToken("txi_")
 	inv := InvitationDTO{Email: email, Role: role, Token: token, ExpiresAt: time.Now().Add(InvitationTTL).UTC()}
-	_, err := tx.Exec(ctx, `INSERT INTO tenant_invitations(tenant_id, email, role, token_hash, invited_by, expires_at)
-		VALUES ($1,$2,$3,$4,$5,$6)`, tenantID, email, role, hash, invitedBy, inv.ExpiresAt)
+	_, err := tx.Exec(ctx, `INSERT INTO tenant_invitations(tenant_id, email, role, token_hash, invited_by, expires_at, driver_id)
+		VALUES ($1,$2,$3,$4,$5,$6,nullif($7,'')::uuid)`, tenantID, email, role, hash, invitedBy, inv.ExpiresAt, driverID)
 	if err != nil {
 		return inv, err
 	}

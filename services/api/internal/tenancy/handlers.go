@@ -3,6 +3,7 @@ package tenancy
 import (
 	"errors"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -65,7 +66,7 @@ func (s *Service) createTenant(r *http.Request, tx pgx.Tx, p identity.Principal)
 		Action: "tenant.created", TargetType: "tenant", TargetID: t.ID}); err != nil {
 		return Result{}, err
 	}
-	inv, err := createInvitation(r.Context(), tx, t.ID, in.OwnerEmail, "owner", p.UserID)
+	inv, err := createInvitation(r.Context(), tx, t.ID, in.OwnerEmail, "owner", p.UserID, "")
 	if err != nil {
 		return Result{}, err
 	}
@@ -153,10 +154,11 @@ func (s *Service) acceptInvite(w http.ResponseWriter, r *http.Request) error {
 	// Platform scope: the invitation is located by token hash before any tenant is known.
 	err := db.InTx(r.Context(), s.Pool, db.Scope{Platform: true}, func(tx pgx.Tx) error {
 		var invID, tenantID, email, role, tenantStatus string
-		err := tx.QueryRow(r.Context(), `SELECT i.id, i.tenant_id, i.email, i.role, t.status FROM tenant_invitations i
+		var driverID *string
+		err := tx.QueryRow(r.Context(), `SELECT i.id, i.tenant_id, i.email, i.role, t.status, i.driver_id FROM tenant_invitations i
 			JOIN tenants t ON t.id = i.tenant_id
 			WHERE i.token_hash = $1 AND i.accepted_at IS NULL AND i.expires_at > now() FOR UPDATE OF i`,
-			identity.HashToken(in.Token)).Scan(&invID, &tenantID, &email, &role, &tenantStatus)
+			identity.HashToken(in.Token)).Scan(&invID, &tenantID, &email, &role, &tenantStatus, &driverID)
 		if errors.Is(err, pgx.ErrNoRows) || tenantStatus == "closed" {
 			return invalid
 		}
@@ -188,6 +190,14 @@ func (s *Service) acceptInvite(w http.ResponseWriter, r *http.Request) error {
 		if _, err := tx.Exec(r.Context(), `INSERT INTO tenant_memberships(tenant_id, user_id, role) VALUES ($1,$2,$3)
 			ON CONFLICT (tenant_id, user_id) DO NOTHING`, tenantID, userID, role); err != nil {
 			return err
+		}
+		if driverID != nil {
+			if _, err := tx.Exec(r.Context(), `UPDATE drivers SET user_id=$2 WHERE id=$1 AND user_id IS NULL`, *driverID, userID); err != nil {
+				if PgCode(err) == "23505" {
+					return httpx.Errorf(http.StatusConflict, "already_driver", "this account is already a driver for this business")
+				}
+				return err
+			}
 		}
 		if _, err := tx.Exec(r.Context(), `UPDATE tenant_invitations SET accepted_at=now() WHERE id=$1`, invID); err != nil {
 			return err
@@ -268,14 +278,29 @@ func (s *Service) updateTenant(r *http.Request, tx pgx.Tx, m Member) (Result, er
 	return Result{http.StatusOK, map[string]any{"tenant": t}}, err
 }
 
-// completeOnboarding activates the tenant. Stage 2 adds prerequisites
-// (service zone, vehicle category, fare rule) — see docs/IMPLEMENTATION_PLAN.md T-012.
+// completeOnboarding activates the tenant once it can actually price a ride:
+// at least one active zone, active category and fare rule.
 func (s *Service) completeOnboarding(r *http.Request, tx pgx.Tx, m Member) (Result, error) {
 	if m.Role != "owner" {
 		return Result{}, httpx.ErrForbidden
 	}
 	if m.TenantStatus != "onboarding" {
 		return Result{}, httpx.Errorf(http.StatusConflict, "invalid_transition", "tenant is already %s", m.TenantStatus)
+	}
+	var zones, categories, fares int
+	if err := tx.QueryRow(r.Context(), `SELECT (SELECT count(*) FROM service_zones WHERE active),
+		(SELECT count(*) FROM vehicle_categories WHERE active), (SELECT count(*) FROM fare_rules)`).Scan(&zones, &categories, &fares); err != nil {
+		return Result{}, err
+	}
+	var missing []string
+	for name, n := range map[string]int{"service zone": zones, "vehicle category": categories, "fare rule": fares} {
+		if n == 0 {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		return Result{}, httpx.Errorf(http.StatusConflict, "onboarding_incomplete", "add at least one %s first", strings.Join(missing, ", "))
 	}
 	t, err := scanTenant(tx.QueryRow(r.Context(), `UPDATE tenants SET status='active', updated_at=now()
 		WHERE id=$1 AND status='onboarding' RETURNING `+tenantCols, m.TenantID))
@@ -315,10 +340,13 @@ func (s *Service) inviteStaff(r *http.Request, tx pgx.Tx, m Member) (Result, err
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return Result{}, err
 	}
+	if in.Role == "driver" {
+		return Result{}, httpx.Errorf(http.StatusUnprocessableEntity, "invalid_role", "drivers are invited from the drivers page")
+	}
 	if in.Role == "owner" && m.Role != "owner" {
 		return Result{}, httpx.Errorf(http.StatusForbidden, "forbidden", "only an owner can invite another owner")
 	}
-	inv, err := createInvitation(r.Context(), tx, m.TenantID, in.Email, in.Role, m.UserID)
+	inv, err := createInvitation(r.Context(), tx, m.TenantID, in.Email, in.Role, m.UserID, "")
 	return Result{http.StatusCreated, map[string]any{"invitation": inv}}, err
 }
 

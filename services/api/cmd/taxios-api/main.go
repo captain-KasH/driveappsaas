@@ -66,6 +66,18 @@ func run(ctx context.Context, args []string) error {
 		}
 		return err
 
+	case "healthcheck": // used by the container HEALTHCHECK; distroless has no curl
+		c := &http.Client{Timeout: 3 * time.Second}
+		res, err := c.Get("http://127.0.0.1:8080/healthz")
+		if err != nil {
+			return err
+		}
+		res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			return fmt.Errorf("healthz returned %d", res.StatusCode)
+		}
+		return nil
+
 	case "serve":
 		pool, err := db.Open(ctx, mustEnv("DATABASE_URL"))
 		if err != nil {
@@ -83,7 +95,9 @@ func run(ctx context.Context, args []string) error {
 		if addr == "" {
 			addr = ":8080"
 		}
-		srv := &http.Server{Addr: addr, Handler: server.New(pool), ReadHeaderTimeout: 10 * time.Second}
+		bookings := server.NewBookings(pool)
+		go bookings.Run(ctx, 5*time.Second) // ponytail: in-process dispatch worker; one API replica only until it takes an advisory lock
+		srv := &http.Server{Addr: addr, Handler: server.New(pool, bookings), ReadHeaderTimeout: 10 * time.Second}
 		go func() {
 			<-ctx.Done()
 			shutdown, cancel := context.WithTimeout(context.Background(), 15*time.Second)
