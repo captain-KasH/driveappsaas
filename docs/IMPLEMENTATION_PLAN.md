@@ -1,52 +1,154 @@
-# Implementation plan and backlog
+# Implementation roadmap (master prompt §34 milestones)
 
-Status: ✅ done (evidence in PROJECT_STATUS) · 🔄 in progress · ⬜ todo · ⛔ blocked.
-Priority: P0 blocks the MVP journey · P1 needed for commercial MVP · P2 later.
+Status: ✅ done (evidence in PROJECT_STATUS/FEATURE_STATUS) · 🟡 partial · ⬜ todo · ⛔ blocked externally.
+Priority: P0 = needed for the first commercial launch · P1 = v1.1 · P2 = later.
+Old task IDs (T-000…T-100) are kept where the work exists; new work gets IDs per milestone (T-1xx = M1, …).
 
-## Stage 0–1 — Audit, specification, foundation
-| ID | Task | Deps | P | Acceptance | Status |
-|---|---|---|---|---|---|
-| T-000 | Repo audit, docs set, CLAUDE.md, backlog | — | P0 | 16 docs + CLAUDE.md exist and reflect real state | ✅ |
-| T-001 | Go API skeleton: httpx errors/request IDs/logs, health, migrations runner | T-000 | P0 | builds, vets, `/healthz` checks DB | ✅ |
-| T-002 | Identity: users, bcrypt, opaque sessions, login/logout/me | T-001 | P0 | `TestAuthSessions` | ✅ |
-| T-003 | Tenancy: provisioning, invitations, memberships, roles, status lifecycle, RLS, audit | T-002 | P0 | `TestOnboardingJourney`, `TestTenantIsolation*`, `TestSuspensionAndClosure`, `TestAuditIsAppendOnly` | ✅ |
-| T-004 | CI: vet, gofmt, tests on Postgres service, `govulncheck` | T-001 | P1 | green run on GitHub Actions | ⛔ Actions not used (free-tier minutes); tests run on the server via `make test-remote` / `deploy/test.sh` |
-| T-005 | Rate limiting on login + accept-invite (per IP + per email) | T-002 | P1 | test: 11th attempt in window → 429 | 🟡 per-IP at packline nginx (10/min); per-email in-app still todo |
-| T-006 | MFA (TOTP) for platform roles | T-002 | P1 | platform login requires second factor | ⬜ |
-| T-007 | Tenant branding config (logo, colours, languages, currency, contact, legal links) | T-003 | P1 | owner updates branding; validated; audited | ⬜ |
+## Build order (D-025)
+M1 → M4 → M7 → M9 → M10 → M8 → M11 → M14 (launch) → M12 → M13, with M5/M6 gaps picked up when a
+milestone needs them. Reason: the owner's first goal is the SaaS owner → tenant admin → white-label app
+chain end to end; billing before online payments because v1 invoicing is manual (D-023).
 
-## Stage 2 — Core mobility
-| ID | Task | Deps | P | Acceptance | Status |
-|---|---|---|---|---|---|
-| T-010 | Enable PostGIS (server Docker test stack + prod) | — | P0 | migration 0002 passes `make test-remote` | ✅ |
-| T-012 | Service zones + vehicle categories (+ onboarding prerequisites) | T-010 | P0 | owner creates zone polygon + category; onboarding completion requires ≥1 of each + a fare rule | ✅ |
-| T-013 | Fare engine: versioned rules, integer minor units, breakdown, estimate vs final | T-012 | P0 | table-driven unit tests incl. minimum fare, night surcharge, rounding; rule version stored | ✅ (route estimate is a straight-line heuristic — T-013b) |
-| T-013b | Real routing/ETA provider for estimates and dispatch ETA | T-013 | P1 | provider chosen (cost/quality for LK), adapter + fallback | ⬜ |
-| T-011 | OpenAPI generation from route table | T-003 | P1 | `/v1/openapi.json` served; CI diff check | ⬜ |
-| T-014 | Booking state machine (formal table + transition function + events) | T-013 | P0 | every illegal transition rejected in tests; transitions audited | ✅ |
-| T-015 | Booking create with `Idempotency-Key`, tenant isolation on bookings | T-014 | P0 | scenario 1 + 3 tests | ✅ |
-| T-016 | Drivers, vehicles, documents + approval; dispatch (manual + nearest eligible, offers, expiry, locking) | T-015 | P0 | scenario 2 (parallel assignment) + 11 tests | ✅ |
-| T-017 | Trip lifecycle + final fare + cash collection record, receipt, rating, summary report | T-016 | P0 | scenario 12 test; MVP steps 1–18 via API (`TestMVPJourney`) | ✅ |
-| T-018 | Deploy to taxios.packline.lk (Docker on packline server, nginx vhost, Cloudflare DNS) | T-017 | P0 | public `/healthz` 200 via Cloudflare; deploy script smoke test passes | ✅ 2026-10-11 |
-| T-019 | Stage 3 clients: operator/dispatcher web console + passenger web booking (Next.js), then RN passenger/driver apps | T-017 | P0 | MVP journey executable through UI | 🟡 web built + deployed (admin, console, dispatch, driver web app, passenger booking); full UI walk-through pending a platform admin account; RN apps ⬜ |
-| T-020 | Reason-coded, time-limited, audited support access to tenant data | T-003 | P1 | grant expires; every read audited | ⬜ |
+## M1 — Repository stabilization
+| ID | Task | P | Acceptance | Status |
+|---|---|---|---|---|
+| T-000 | Initial audit, docs, CLAUDE.md | P0 | | ✅ |
+| T-101 | Re-audit against master prompt v2: PROJECT_AUDIT, FEATURE_STATUS, roadmap, decisions | P0 | docs reflect the real tree; baseline suite green | ✅ 2026-10-11 |
+| T-102 | Competitor feature matrix (Onde, Yelowsoft, TaxiCaller, iCabbi, …) with sources and dates; MVP vs long-term | P0 | `COMPETITOR_FEATURE_MATRIX.md` | 🟡 research running |
+| T-103 | Root `.env.example`; startup validation of required env (serve/migrate) with one clear error | P0 | `serve` without `DATABASE_URL` exits with a named error | ⬜ |
+| T-104 | `deploy/test.sh` also runs `gofmt -l`, `go vet`, `tsc --noEmit`, `next build` | P0 | a type error fails `make test-remote` | ⬜ |
+| T-105 | Remove unused `.github/workflows/ci.yml` or make it opt-in | P2 | | ⬜ |
 
-## Stage 3+ (outline — detailed when the stage starts)
-| ID | Task | Stage |
-|---|---|---|
-| T-030 | Transactional outbox + worker + event dedupe | 3 |
-| T-031 | Authenticated WebSocket updates (tenant-scoped subscriptions), driver location freshness | 3 |
-| T-032 | Tenant portal + dispatcher console (Next.js) | 3 |
-| T-033 | Passenger + driver apps (React Native) | 3 |
-| T-040 | Email delivery (invitations, receipts) | 3 |
-| T-041 | SMS/OTP provider research + adapter | 3/7 |
-| T-042 | Push notifications | 3 |
-| T-050 | Payment provider research (PayHere, Payable) + adapter + webhook intake + reconciliation | 4 |
-| T-060 | Plans, subscriptions, invoices, module catalogue, entitlements | 5 |
-| T-061 | Usage ledger, credit packs, SMS credit reservation (idempotent) | 5 |
-| T-065 | White-label branding, domains, branded build pipeline | 6 |
-| T-070 | Telephony adapter, inbox/chat | 7 |
-| T-080 | AI orchestration layer + passenger assistant + operator copilot | 8 |
-| T-085 | Shared marketplace | 9 |
-| T-090 | Dedicated deployments, licensing (binary vs source vs IP) | 10 |
-| T-100 | Staging/prod environments, backups + restore test, monitoring, runbooks | 11 |
+## M2 — Backend and database foundation
+| ID | Task | P | Acceptance | Status |
+|---|---|---|---|---|
+| T-001 | httpx, health, migrations runner, logging | P0 | | ✅ |
+| T-030 | Transactional outbox + durable jobs (retries, dedupe, advisory-locked worker) | P0 | retried job has one effect; worker safe with 2 replicas | ⬜ |
+| T-011 | OpenAPI document generated from the route table, served at `/v1/openapi.json` | P1 | | ⬜ |
+| T-106 | Cursor pagination on list endpoints (tenants, bookings, drivers, customers) | P1 | | ⬜ |
+
+## M3 — Authentication and tenant isolation
+| ID | Task | P | Acceptance | Status |
+|---|---|---|---|---|
+| T-002 / T-003 | Identity, tenancy, RLS, roles, invitations, audit | P0 | | ✅ |
+| T-110 | Email verification + password reset (hashed single-use tokens; delivery via T-040, dev fallback = token in API response only when `TAXIOS_DEV_TOKENS=1`) | P0 | tests: unverified can't create a business; reset token single-use | ⬜ |
+| T-112 | Long-lived mobile sessions + refresh/rotation + "sign out everywhere" | P0 | | ⬜ |
+| T-113 | Remove/deactivate staff member; session revocation on removal | P0 | | ⬜ |
+| T-005 | Per-account login limiting in-app | P1 | 11th attempt → 429 | 🟡 |
+| T-006 | MFA (TOTP) for platform roles | P1 | | ⬜ |
+| T-020 | Reason-coded, time-limited, audited support access | P1 | | ⬜ |
+
+## M4 — Tenant onboarding and platform administration  ← **current**
+| ID | Task | P | Acceptance | Status |
+|---|---|---|---|---|
+| T-120 | Tenant business profile: legal name, business type, registration/tax no., country, locale, language, contact + billing contact; status `draft → pending_verification → active → suspended/closed` (D-021); migration + PATCH + tests | P0 | state machine tested; existing tenants migrate to `active` | ⬜ |
+| T-121 | Self-service: `POST /v1/auth/register` (verified email required), `POST /v1/businesses` creates a draft tenant with the caller as owner; web `/signup/` | P0 | test: register → verify → create business → appears in verification queue | ⬜ |
+| T-122 | Verification documents (business registration, owner ID) via object storage with signed URLs; platform verification queue approve/reject with reason; audited | P0 | tenant can't go `active` without approval | ⬜ |
+| T-123 | Resumable onboarding checklist API (computed from real data: profile, docs, zone, category, fare, vehicle, driver, branding, staff, publish) + web wizard | P0 | checklist reflects DB state; no client-side-only progress | ⬜ |
+| T-124 | Platform console v2: tenant directory + search, verification queue, tenant detail (status, plan, usage, audit), global audit log, announcements | P0 | live screens call real endpoints | ⬜ |
+| T-125 | Platform feature flags (global + per-tenant overrides) read through the entitlement hook | P1 | | ⬜ |
+| T-126 | Operator dashboard additions: customers, settings (profile/locale), branding tab (reads T-007), subscription tab (reads M10), exports (CSV) | P0 | | ⬜ |
+| T-127 | CSV import for drivers and vehicles with validation report + duplicate handling | P1 | | ⬜ |
+| T-128 | i18n foundation: UI strings externalised; en/si/ta switch; per-tenant default language; phone validation per country | P1 | | ⬜ |
+
+## M5 — Fleet and customer operations
+| ID | Task | P | Acceptance | Status |
+|---|---|---|---|---|
+| T-016 | Drivers, vehicles, documents, approval | P0 | | ✅ |
+| T-130 | Document file uploads (object storage, tenant-prefixed keys, signed URLs, access audited), expiry alerts job | P0 | cross-tenant signed URL → 404 | ⬜ |
+| T-131 | Vehicle lifecycle: insurance/registration docs, inspection + service dates, maintenance state, capacity, accessibility | P1 | | ⬜ |
+| T-132 | Driver earnings + commission records per trip (configurable % / flat), driver statement | P0 | ledger lines append-only | ⬜ |
+| T-133 | Passenger saved places, preferences, consent, data export + deletion request | P1 | | ⬜ |
+| T-134 | Shifts / working hours | P2 | | ⬜ |
+
+## M6 — Booking, fares, dispatch
+| ID | Task | P | Acceptance | Status |
+|---|---|---|---|---|
+| T-012…T-017 | Zones, categories, fares, quotes, bookings, dispatch, trips, cash, receipts, reports | P0 | | ✅ |
+| T-031 | Authenticated WebSocket (tenant-scoped) for dispatch board, driver offers, passenger tracking | P0 | | ⬜ |
+| T-013b | Routing/ETA provider adapter (choice recorded in INTEGRATIONS) with heuristic fallback | P1 | | ⬜ |
+| T-140 | Booking extras: passenger count, luggage, multi-stop, flight number, corporate reference, accessibility | P1 | | ⬜ |
+| T-141 | Cancellation / no-show fees as fare-rule fields | P1 | | ⬜ |
+| T-142 | Promo codes + discounts (validated server-side, usage limits) | P1 | | ⬜ |
+| T-143 | Surge / demand pricing (opt-in per tenant, capped, audited) | P2 | | ⬜ |
+| T-144 | Commission configuration (feeds T-132) | P0 | | ⬜ |
+| T-145 | Recurring bookings | P2 | | ⬜ |
+| T-146 | Dispatch alerts (unassigned > N min, late pickup), dispatcher notes, filters, search, reassignment | P1 | | ⬜ |
+
+## M7 — Passenger and driver applications (Expo, D-024)
+| ID | Task | P | Acceptance | Status |
+|---|---|---|---|---|
+| T-150 | `apps/mobile` Expo monorepo: `passenger`, `driver`, shared `packages/api` + `packages/brand`; runtime branding loaded from `/v1/public/tenants/{slug}/brand`; join by link/code | P0 | both apps build with EAS dev profile | ⬜ |
+| T-151 | Passenger app: auth, OTP (⛔ provider), places, categories, quote, book/schedule, tracking, cancel, history, receipts, rating, settings, deletion | P0 | journey steps on device | ⬜ |
+| T-152 | Driver app: auth, onboarding status, documents, online/offline, offers, trip steps, navigation hand-off, cash, earnings, background location (permitted, battery-aware) | P0 | | ⬜ |
+| T-153 | Push notifications (Expo push → FCM/APNs) through the notification abstraction (T-190) | P0 | | ⬜ |
+| T-154 | Mobile tests: permissions, deep links, session expiry, backgrounding, GPS failure, offline | P1 | | ⬜ |
+
+## M8 — Payment operations
+| ID | Task | P | Acceptance | Status |
+|---|---|---|---|---|
+| T-160 | Provider research (PayHere, Payable/Payments.lk): hosted checkout, webhook signing, refunds, recurring, settlement — documented with sources | P0 | INTEGRATIONS.md | ⬜ |
+| T-161 | Payment abstraction: intents, hosted checkout, server-side status verification, signed webhook intake, idempotent events, states; sandbox run ⛔ until credentials | P0 | scenarios 4, 5, 14 | ⬜ |
+| T-162 | Financial ledger (estimate, final fare, collection, refund, discount, fee, driver earning, adjustment) with invariants | P0 | | ⬜ |
+| T-163 | Refund workflow (where provider supports) | P1 | | ⬜ |
+| T-164 | Reconciliation + operator financial reports/exports | P1 | | ⬜ |
+
+## M9 — White-label websites and branded experiences
+| ID | Task | P | Acceptance | Status |
+|---|---|---|---|---|
+| T-007 | Branding: logo upload, colours, typography choice, contacts, legal links, languages; validated; audited; public `brand` endpoint | P0 | booking page + apps render it | ⬜ |
+| T-170 | Branded booking website templates (2–3) + sections, SEO metadata, terms/privacy pages, consented analytics | P0 | | ⬜ |
+| T-171 | Subdomain `{slug}.taxios.lk`-style routing + custom domain with ownership verification (TXT) + TLS automation | P1 | tenant can't claim another's domain | ⬜ |
+| T-172 | Embeddable booking widget | P2 | | ⬜ |
+| T-173 | App identity config per tenant (name, bundle/package id, icon, splash, store links) + "request branded build" workflow; platform-side approval | P0 | | ⬜ |
+| T-174 | Per-tenant EAS build + submit pipeline using the tenant's own store credentials (encrypted at rest, never displayed) — D-022 | P0 | one tenant app built and submitted to TestFlight/internal track | ⬜ |
+| T-085 | Shared marketplace foundations (operator listing, availability, routing to one operator) | P2 | | ⬜ |
+
+## M10 — SaaS plans, subscriptions, add-ons
+| ID | Task | P | Acceptance | Status |
+|---|---|---|---|---|
+| T-180 | Plan catalogue as data (free/trial/starter/growth/professional/enterprise; monthly/annual; limits; included add-ons) managed in the platform console | P0 | | ⬜ |
+| T-181 | Subscriptions: trial → active → past_due → suspended → cancelled; upgrades/downgrades; history | P0 | state machine tested | ⬜ |
+| T-182 | Entitlement service: server-side checks for features + limits (drivers, vehicles, staff, bookings/month); documented behaviour on expiry | P0 | scenarios 6, 8 | ⬜ |
+| T-183 | Invoices + manual payment recording (bank transfer / link), grace period, overdue policy (D-023) | P0 | | ⬜ |
+| T-184 | Add-on catalogue + purchase/activation sequence (BILLING_AND_ENTITLEMENTS) | P1 | | ⬜ |
+| T-061 | Usage ledger (idempotent), quotas, overage, budget alerts | P1 | scenario 7 | ⬜ |
+| T-185 | Tenant billing pages (plan, invoices, usage, add-ons) | P0 | | ⬜ |
+| T-186 | Platform revenue + usage reporting | P1 | | ⬜ |
+
+## M11 — Notifications and integrations
+| ID | Task | P | Acceptance | Status |
+|---|---|---|---|---|
+| T-190 | Notification abstraction: channels, templates (branded, per language), outbox-driven, deduped, delivery status, metering | P0 | retried event → one message | ⬜ |
+| T-040 | Email provider adapter (⛔ account) | P0 | | ⬜ |
+| T-041 | SMS/OTP provider adapter (⛔ account) | P0 | | ⬜ |
+| T-191 | API keys with scopes, rotation, rate limits | P1 | | ⬜ |
+| T-192 | Webhooks: registration, signed delivery, retries, dead-letter, logs, replay | P1 | | ⬜ |
+| T-193 | Tenant integration settings + provider health | P1 | | ⬜ |
+
+## M12 — AI capabilities
+| ID | Task | P | Acceptance | Status |
+|---|---|---|---|---|
+| T-200 | Voice provider research (LK/MY availability, numbers, languages, cost, recording law) | P2 | | ⬜ |
+| T-201 | Tool-based booking agent (narrow tools, confirmation, fallback, metered) | P2 | scenarios 9, 10 | ⬜ |
+| T-202 | Dispatcher copilot | P2 | | ⬜ |
+| T-203 | BI layer | P2 | | ⬜ |
+
+## M13 — Enterprise and self-hosted licensing
+| ID | Task | P | Acceptance | Status |
+|---|---|---|---|---|
+| T-210 | Licence records, deployment registration, editions, expiry; no remote kill switch | P2 | scenario 13 | ⬜ |
+| T-211 | Self-hosted distribution + docs | P2 | | ⬜ |
+
+## M14 — Production hardening and launch readiness
+| ID | Task | P | Acceptance | Status |
+|---|---|---|---|---|
+| T-220 | Nightly DB backups + restore test | **P0** | restore drill documented with result | ⬜ |
+| T-221 | httpOnly cookie sessions, CSP, security headers, CORS policy, dependency/container scanning | P0 | | ⬜ |
+| T-222 | Playwright E2E for the 12-step journey (§32) | P0 | | ⬜ |
+| T-223 | Metrics, error tracking, alerts (payments, webhooks, jobs, quotas, backups) | P0 | | ⬜ |
+| T-224 | Load test (booking + location traffic) | P1 | | ⬜ |
+| T-225 | Launch docs: minimum infra, scaling triggers, incident response, DR | P0 | | ⬜ |
+
+## Next actionable task
+**T-103 + T-104** (small, unblock everything), then **T-120 → T-121 → T-122 → T-123 → T-124** (self-service onboarding + platform console), each with tests, committed and deployed separately.

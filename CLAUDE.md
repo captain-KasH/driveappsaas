@@ -1,12 +1,15 @@
 # Taxios — Claude instructions
 
-Taxios is a multi-tenant, white-label ride-hailing SaaS (Sri Lanka first). The master spec is the
-"MobilityOS master build specification" (working title); the product name is **Taxios**.
+Taxios is a multi-tenant, white-label ride-hailing SaaS (Sri Lanka first). The brief is
+`docs/MASTER_PROMPT.md` (v2, 14 milestones). Owner decisions that shape the build: D-021 self-signup +
+super-admin approval, D-022 per-tenant store apps under the tenant's own store accounts, D-023 manual
+invoicing first, D-024 Expo, D-025 build order M1 → M4 → M7 → M9 → M10 → M8 → M11 → M14.
 
 ## Session start (required)
-Read `docs/PROJECT_STATUS.md` and `docs/IMPLEMENTATION_PLAN.md` before doing anything. After every
-meaningful change: update both (task status + verification evidence = the exact command and result),
-and add to `docs/DECISIONS.md` / `docs/KNOWN_ISSUES.md` when relevant.
+Read `docs/PROJECT_STATUS.md`, `docs/FEATURE_STATUS.md` and `docs/IMPLEMENTATION_PLAN.md` before doing
+anything. After every meaningful change: update them (task status + verification evidence = the exact
+command and result), and add to `docs/DECISIONS.md` / `docs/KNOWN_ISSUES.md` when relevant. Never mark a
+feature done without an executed test or a live check named in the doc (prompt §35).
 
 ## Architecture (confirmed)
 - `services/api` — Go 1.26 modular monolith, stdlib `net/http` routing, `pgx/v5`, no ORM.
@@ -56,5 +59,6 @@ Bootstrap a platform admin on the server: see "Bootstrap a platform admin" in `d
 - Comments only for non-obvious WHY. Small increments; commit after green `make test`.
 
 ## Current phase
-Phase 1 API complete: spec Part 17 operational journey steps 1–18 pass end to end (`TestMVPJourney`).
-Next: T-019 clients (operator/dispatcher console + passenger web booking), then RN apps.
+Ride engine (M2, M3, M5, M6 core) verified end to end (`TestMVPJourney`); web console/booking/driver pages live.
+**Now: M4** — self-service onboarding (T-120…T-123) + platform console v2 (T-124) — then M7 Expo apps, M9 white-label.
+Audit: `docs/PROJECT_AUDIT.md`. Competitors: `docs/COMPETITOR_FEATURE_MATRIX.md`.

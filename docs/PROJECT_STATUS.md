@@ -3,11 +3,13 @@
 _Last updated: 2026-10-11_
 
 ## Phase
-**Phase 1 API complete.** The spec Part 17 operational journey (steps 1–18) runs end to end
-through the API and is covered by `TestMVPJourney`. The API is deployed at
-https://taxios.packline.lk (Docker stack on the packline server; see DEPLOYMENT_RUNBOOK.md).
-**Next task: T-019** — operator/dispatcher web console + passenger web booking (Next.js), so the
-journey is executable through a UI; then React Native passenger/driver apps.
+Master prompt v2 adopted 2026-10-11 (`MASTER_PROMPT.md`, D-020…D-025). Audit: `PROJECT_AUDIT.md`;
+per-section status: `FEATURE_STATUS.md`; roadmap: `IMPLEMENTATION_PLAN.md` (M1–M14).
+The ride engine is verified end to end (`TestMVPJourney`) and the web app is live at https://taxios.packline.lk.
+**Milestone now: M4** (self-service onboarding + platform console v2). **Next task: T-103/T-104, then T-120.**
+
+Baseline before M1 changes (2026-10-11, `make test-remote`, PostGIS 16-3.4 + Go 1.26 on the server):
+`ok internal/fare 0.014s · ok internal/server 14.741s` (18 tests, all pass).
 
 ## Working (verified)
 | Capability | Evidence |
