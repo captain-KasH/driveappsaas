@@ -15,3 +15,6 @@
 | K-011 | Packline nginx bind-mounts `nginx.conf` read-only as a single file: a `git pull` doesn't reach the running container until nginx is recreated (packline deploys do this) | Vhost changes need a packline deploy or an nginx recreate | Documented in DEPLOYMENT_RUNBOOK |
 | K-012 | No push/SMS notifications: passengers and drivers must poll (`/my/bookings/{id}`, `/driver/work`) | Higher latency/battery until T-031/T-042 | WebSocket + push in Stage 3 |
 | K-013 | Driver documents have numbers and expiry but no file uploads yet | Reviewers can't see the document image | Object storage + signed URLs (Stage 3) |
+| K-014 | Web maps use OpenStreetMap public tiles + Nominatim search/reverse geocoding from the browser | Their usage policies only allow low volume; fine for MVP, not for scale | Replace with the chosen maps provider (T-013b) |
+| K-015 | Web session token is kept in localStorage; no Content-Security-Policy on the site yet | An XSS bug would expose the token | httpOnly cookie sessions + CSP before adding third-party scripts |
+| K-016 | The UI journey (admin → owner → driver → passenger in the browser) has not been walked end to end; the API journey is fully tested | UI-only bugs may remain | Walk it once a platform admin exists; add Playwright E2E |

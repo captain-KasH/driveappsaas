@@ -51,8 +51,18 @@ ok  internal/fare · ok  internal/server 13.3s
   `deploy.sh` ran the full suite on the server before deploying (ok fare, ok server 11.9s); container healthy.
   packline.lk stayed 200 throughout.
 
+## Website (T-019, 2026-10-11)
+https://taxios.packline.lk serves the Next.js static site from the API binary (same origin as `/v1`):
+`/` landing · `/login/` · `/invite/?token=` · `/home/` role hub · `/admin/` platform admin · `/console/?t=` operator
+console (overview report, setup with map zones + fare rules + go-live, drivers + document review, vehicles,
+bookings + timeline, live dispatch board with manual offers and phone bookings, team) · `/driver/?t=` driver web
+app (online/offline, GPS sharing, offers with countdown, trip steps, navigation hand-off, cash) · `/book/?b=slug`
+passenger booking (sign up/in, map + address search, quote, book, live driver, cancel, receipt, rating).
+Verified live: landing, sign-in, unknown operator message, all assets 200, no unexpected console errors.
+`/v1/*` unknown paths still return JSON 404. Not yet verified: the signed-in flows in the browser (K-016).
+
 ## Not built yet
-Web and mobile clients; notifications/realtime; online payments; billing, add-ons, usage metering;
+Mobile (React Native) apps; notifications/realtime; online payments; billing, add-ons, usage metering;
 communications; AI; shared marketplace; white-label builds; enterprise licensing; backups for the
 Taxios DB. See IMPLEMENTATION_PLAN.md.
 
