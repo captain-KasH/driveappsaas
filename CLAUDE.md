@@ -10,18 +10,23 @@ and add to `docs/DECISIONS.md` / `docs/KNOWN_ISSUES.md` when relevant.
 
 ## Architecture (confirmed)
 - `services/api` — Go 1.26 modular monolith, stdlib `net/http` routing, `pgx/v5`, no ORM.
-  Modules live in `internal/<module>`; `internal/server` wires them. No circular imports.
-- PostgreSQL 16 with row-level security. Redis, PostGIS, web (`apps/web`, Next.js) and mobile
-  (`apps/mobile`, React Native) are planned, not yet present.
+  Modules: `identity`, `tenancy` (routes/RLS scope), `fleet` (zones, categories, fares, drivers, vehicles),
+  `booking` (quotes, bookings, dispatch + worker, trips, cash, receipts, reports), `fare` (pure engine), `audit`.
+  `internal/server` wires them. No circular imports. Lock order: booking → offer → driver.
+- PostgreSQL 16 + PostGIS with row-level security. Web (`apps/web`, Next.js) and mobile
+  (`apps/mobile`, React Native) clients are next (T-019); Redis not used yet.
 - Details: `docs/ARCHITECTURE.md`, `docs/DATABASE_DESIGN.md`, `docs/API_CONTRACTS.md`.
 
 ## Commands
 ```
-make test      # vet + gofmt check + fresh taxios_test DB + go test ./... (real Postgres, app role)
-make migrate   # apply migrations to taxios_dev
-make serve     # run API on :8080 as taxios_app
+make test-remote   # rsync tree to the packline server, run the full suite in Docker (PostGIS) — the default
+make test          # same, locally — needs Postgres 16 + PostGIS (dev Mac has none)
 ```
-Bootstrap a platform admin: `TAXIOS_ADMIN_PASSWORD=... MIGRATE_DATABASE_URL=postgres://localhost/taxios_dev go run ./cmd/taxios-api create-platform-admin EMAIL "NAME"` (from `services/api`).
+Deploy (manual, no CI): `ssh appuser@164.68.97.219` then `cd /data/apps/taxios && ./deploy/deploy.sh`
+(tests → build → migrate → recreate → smoke). Live at https://taxios.packline.lk. See `docs/DEPLOYMENT_RUNBOOK.md`.
+Server access is ONLY `appuser@164.68.97.219` — never root/sudo. Taxios has its own stack/DB; never touch packline's
+containers except the shared nginx vhost (packline repo `ops/nginx/nginx.conf`).
+Bootstrap a platform admin on the server: see "Bootstrap a platform admin" in `docs/DEPLOYMENT_RUNBOOK.md`.
 
 ## Security invariants (release-blocking)
 - The API connects as `taxios_app` (no superuser, no BYPASSRLS); `serve` refuses otherwise.
@@ -38,7 +43,9 @@ Bootstrap a platform admin: `TAXIOS_ADMIN_PASSWORD=... MIGRATE_DATABASE_URL=post
 - Forward-only SQL migrations in `services/api/internal/db/migrations/NNNN_name.sql`, embedded and
   applied in order, one transaction each. Never edit an applied migration — add a new one.
 - Every tenant-owned table: `tenant_id` + `ENABLE` and `FORCE ROW LEVEL SECURITY` + a policy using
-  `app_tenant_id()`, plus an isolation assertion in `TestTenantIsolationRLS`.
+  `app_tenant_id()`, plus an isolation assertion in `TestMobilityTablesRLS` / `TestTenantIsolationRLS`.
+- Driver eligibility = the `driver_compliance` view only. Money/history tables (`payments`, `booking_events`,
+  `fare_rule_versions`, `audit_events`) are append-only (trigger + revoked grants).
 - App-role grants are re-applied by `db.Migrate` (`grantAppRole`); append-only tables revoke UPDATE/DELETE there.
 
 ## Conventions
@@ -49,4 +56,5 @@ Bootstrap a platform admin: `TAXIOS_ADMIN_PASSWORD=... MIGRATE_DATABASE_URL=post
 - Comments only for non-obvious WHY. Small increments; commit after green `make test`.
 
 ## Current phase
-Stage 1 (foundation) complete for identity/tenants/audit. Next: Stage 2 core mobility — see plan.
+Phase 1 API complete: spec Part 17 operational journey steps 1–18 pass end to end (`TestMVPJourney`).
+Next: T-019 clients (operator/dispatcher console + passenger web booking), then RN apps.

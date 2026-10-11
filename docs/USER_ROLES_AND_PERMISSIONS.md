@@ -20,6 +20,17 @@ Platform roles grant **no** access to tenant workspace routes. A super admin is 
 | staff.read | ✓ | ✓ | ✓ | | |
 | staff.manage (invite) | ✓ | ✓ | | | |
 | audit.read | ✓ | ✓ | | ✓ | |
+| fleet.read (drivers, vehicles) | ✓ | ✓ | ✓ | | |
+| fleet.manage (+ document approval) | ✓ | ✓ | | | |
+| pricing.manage (zones, categories, fares) | ✓ | ✓ | | | |
+| booking.read | ✓ | ✓ | ✓ | ✓ | ✓ |
+| dispatch.manage (phone bookings, assign, cancel, board) | ✓ | ✓ | ✓ | | |
+| reports.read | ✓ | ✓ | | ✓ | |
+
+`driver` and `passenger` are membership roles with **no** staff permissions. Their endpoints
+(`/driver/*`, `/my/*`, `/quotes`) are guarded by `RoleRoute` and always resolve the caller's own
+driver/customer record from the session — a driver can only act on their own offers and trips,
+a passenger only on their own bookings (others return 404).
 
 Extra rules:
 - Only an `owner` can invite another `owner` and complete onboarding.
@@ -27,5 +38,5 @@ Extra rules:
 - Closing a tenant revokes sessions of staff who belong to no other tenant (platform staff excluded).
 
 ## Planned (not built)
-Passenger and driver identities (tenant-scoped profiles linked to a user, phone-verified), corporate
+Phone verification for passengers (K-009), corporate
 account roles, API-key principals with scoped permissions, AI tool principals (act as the requesting user, never above).

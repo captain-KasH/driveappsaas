@@ -11,9 +11,15 @@ services/api ── internal/server (mux wiring, middleware)
    ├─ httpx      errors, JSON, request IDs, structured logs
    ├─ db         pool, embedded migrations, InTx(scope) → RLS context
    ├─ identity   users, passwords (bcrypt), opaque sessions
-   ├─ tenancy    tenants, memberships, invitations, roles, TenantRoute/PlatformRoute
+   ├─ tenancy    tenants, memberships, invitations, roles, TenantRoute/RoleRoute/PlatformRoute
+   ├─ fleet      zones (PostGIS), vehicle categories, versioned fare rules, vehicles, drivers, documents
+   ├─ fare       pure fare engine (integer minor units) + route estimate heuristic
+   ├─ booking    quotes, idempotent bookings, dispatch + 5 s worker, trip state machine, cash, receipts, reports
    └─ audit      append-only audit events in the caller's transaction
-PostgreSQL 16 (RLS FORCE on tenant tables)
+PostgreSQL 16 + PostGIS (RLS FORCE on every tenant table)
+
+Production: Docker stack on the packline server behind packline's nginx at taxios.packline.lk
+(see DEPLOYMENT_RUNBOOK.md).
 ```
 
 ## Request path
@@ -33,23 +39,36 @@ PostgreSQL 16 (RLS FORCE on tenant tables)
   Planned: tenant-safe cache keys (`t:{tenant}:…`), WebSocket subscriptions authorized per tenant,
   object-storage keys prefixed by tenant, AI retrieval through the same scoped transactions.
 
+## Dispatch
+1. A booking enters `searching` (immediately, or 15 min before `scheduled_for` via the worker).
+2. `dispatchNext` locks the booking, picks the nearest driver satisfying `driver_compliance` (no issues),
+   `available`, location < 2 min old, within 8 km, matching vehicle category, no live offer/trip, not
+   already offered this booking — `FOR UPDATE SKIP LOCKED` — and creates a 30 s offer.
+3. Accept: lock booking → offer → driver, re-check everything, create the trip; unique partial
+   indexes make a second assignment impossible even if a check regresses.
+4. Reject/expiry → next driver. No driver for 10 min → `expired`. Dispatchers can offer to a chosen
+   eligible driver (90 s), stale location allowed but flagged.
+
 ## Planned modules (dependency order)
-fleet (drivers, vehicles, documents) → zones/categories → fares → booking → dispatch → trips →
-payments/ledger → settlements → notifications → billing/entitlements → integrations → AI → reporting → marketplace → licensing.
+notifications + realtime (WebSocket, push) → payments/ledger → settlements → billing/entitlements →
+integrations → AI → marketplace → licensing.
 
 ## Async work (planned, T-030)
 Transactional outbox table written in the same transaction as the state change; a worker in the
 same binary delivers events with stable IDs, schema versions and tenant context; consumers dedupe
 on event ID. Redis is introduced only for real-time fan-out / location freshness, not as a queue (D-008).
 
-## Booking state machine (draft — finalized with tests in T-014)
+## Booking state machine (implemented: `booking/trip.go` `tripTransitions`, `cancel`; tests in `mvp_test.go`)
 | From | To | Actor | Notes |
 |---|---|---|---|
-| — | quoted | passenger/dispatcher/voice tool | server fare quote stored with rule version |
-| quoted | requested | passenger/dispatcher | idempotency key required |
-| requested | searching | system | dispatch policy version recorded |
-| searching | assigned | dispatch engine / dispatcher | row lock; one active assignment |
-| searching | expired | system | offer timeout exhausted |
-| requested/searching/assigned | cancelled | passenger/dispatcher/driver (assigned only) | reason + cancellation policy |
-Trip: assigned → en_route → arrived → picked_up → in_progress → completed; any pre-completion → aborted
-(authorized actor + reason). `completed` is terminal; no reopen.
+| — | (quote) | passenger / dispatcher | `booking_quotes` row: fare rule version, estimate, 10-min expiry |
+| quote | scheduled \| searching | passenger / dispatcher | `Idempotency-Key` required; one booking per quote |
+| scheduled | searching | worker | 15 min before pickup |
+| searching | assigned | driver accepting an offer | booking → offer → driver locks; trip row created |
+| searching | expired | worker | no acceptance within 10 min |
+| scheduled/searching/assigned | cancelled | passenger (own) / dispatcher | reason; not once the trip is `in_progress`; frees the driver |
+| assigned | completed | driver (`complete`) | final fare computed and stored |
+| assigned | cancelled | driver (`abort`) | reason required |
+Trip: `driver_assigned → en_route → arrived → in_progress → completed`; `arrived` may skip `en_route`;
+any live state → `aborted` (driver, with reason). `completed`/`aborted` are terminal; no reopen.
+Every transition appends a `booking_events` row (append-only).

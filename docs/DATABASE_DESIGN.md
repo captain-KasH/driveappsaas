@@ -26,6 +26,27 @@ RLS policies (all `FORCE`):
 - Soft delete only where retention requires it (`*_at` timestamps); otherwise status columns.
 - Every tenant-owned table: `tenant_id uuid NOT NULL REFERENCES tenants`, leading index on `tenant_id`, RLS + isolation test.
 
+## Built (0002_mobility)
+| Table | Notes |
+|---|---|
+| `service_zones` | `geometry(MultiPolygon,4326)` + GiST; `ST_IsValid` check |
+| `vehicle_categories` | `(tenant_id, code)` unique |
+| `fare_rules` / `fare_rule_versions` | one rule per (zone, category); versions **immutable** (trigger), referenced by quotes |
+| `vehicles` | `(tenant_id, plate)` unique; pending/approved/suspended |
+| `drivers` | linked `user_id` after invite; `availability` offline/available/busy; `location` point + `location_at` |
+| `driver_documents` | type, number, expiry, review status |
+| `driver_compliance` (view, security_invoker) | `issues[]`: not approved / vehicle / missing-or-expired required docs (tenant-local date) |
+| `customers` | per-tenant, `(tenant_id, phone)` unique; optional `user_id` (app passengers) |
+| `booking_quotes` | pickup/dropoff points, estimate breakdown, fare version, expiry |
+| `bookings` | status, `(tenant_id, idempotency_key)` unique, `quote_id` unique, reference `TX-XXXXXXX` |
+| `booking_events` | append-only history of every transition |
+| `dispatch_offers` | partial unique: one pending per booking, one pending per driver |
+| `trips` | 1:1 booking; timestamps per phase; final distance/source/duration/waiting/breakdown; partial unique: one live trip per driver |
+| `location_updates` | GPS points during `in_progress` (final distance = `ST_Length` of the track) |
+| `payments` | append-only; `cash_collected` once per booking; corrections are `adjustment` rows |
+| `ratings` | one per booking |
+`tenants` gained `timezone` (default Asia/Colombo) and `currency` (LKR).
+
 ## Planned entities (per spec Part 12, normalized as built)
 Operations: drivers, driver_documents, vehicles, driver_vehicles, service_zones (PostGIS polygon — T-010), service_categories, fare_rules + immutable fare_rule_versions.
 Bookings: bookings, booking_quotes, booking_events (append-only), dispatch_offers, trips, trip_events, location_updates (partitioned by day), cancellations, ratings, support_cases.

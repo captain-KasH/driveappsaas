@@ -28,5 +28,5 @@ for i in $(seq 1 30); do
 done
 [ "$status" = healthy ] || { echo "api not healthy: $status"; compose logs --tail 50 api; exit 1; }
 
-docker exec packlink-nginx curl -fsS -H 'Host: taxios.packline.lk' -k https://127.0.0.1/healthz \
+docker exec packlink-nginx curl -fsS -k --resolve taxios.packline.lk:443:127.0.0.1 https://taxios.packline.lk/healthz \
   && echo && echo "Deploy succeeded: $(git rev-parse --short HEAD)"

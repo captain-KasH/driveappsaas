@@ -3,41 +3,61 @@
 _Last updated: 2026-10-11_
 
 ## Phase
-Stage 1 (foundation) — identity, tenancy, RLS isolation and audit are done and tested.
-**Next task: T-010 → T-012** (PostGIS, then service zones and vehicle categories), then the fare engine (T-013).
-
-## Audit (Stage 0, 2026-10-11)
-The repo `captain-KasH/driveappsaas` was empty (no commits). There was no existing code to preserve.
-Local toolchain: Go 1.26.5, Node 24, pnpm, Homebrew PostgreSQL 16 (pgcrypto, citext; **no PostGIS**),
-no Docker, no Redis.
+**Phase 1 API complete.** The spec Part 17 operational journey (steps 1–18) runs end to end
+through the API and is covered by `TestMVPJourney`. The API is deployed at
+https://taxios.packline.lk (Docker stack on the packline server; see DEPLOYMENT_RUNBOOK.md).
+**Next task: T-019** — operator/dispatcher web console + passenger web booking (Next.js), so the
+journey is executable through a UI; then React Native passenger/driver apps.
 
 ## Working (verified)
 | Capability | Evidence |
 |---|---|
-| Platform admin bootstrap, login/logout, sessions | `TestAuthSessions` |
-| Tenant provisioning → owner invitation → owner account → onboarding complete | `TestOnboardingJourney` |
-| Staff invitations, role permissions (dispatcher can't manage) | `TestOnboardingJourney` |
-| Tenant isolation — API + RLS | `TestTenantIsolationAPI`, `TestTenantIsolationRLS` (mutation: opening the memberships policy makes it fail with "scope B sees 1 rows of tenant A") |
-| Suspend / reactivate / close with reason; closure signs out staff | `TestSuspensionAndClosure` |
-| Append-only audit trail | `TestAuditIsAppendOnly` |
+| Platform admin, login/logout, sessions | `TestAuthSessions` |
+| Tenant provisioning → owner invite → onboarding (requires zone + category + fare rule) | `TestOnboardingJourney` |
+| Staff roles and permissions | `TestOnboardingJourney`, USER_ROLES_AND_PERMISSIONS.md |
+| Zones (PostGIS), categories, immutable versioned fare rules | `TestMVPJourney`, `TestQuoteAndBookingRules` |
+| Fare engine (integer minor units, minimum, night window across midnight, waiting, scheduled fee, tax, rounding) | `internal/fare` table tests (9 cases) |
+| Drivers, vehicles, document review, approval gated on valid documents, go-online gated on compliance | `TestMVPJourney`, `TestExpiredDocumentsBlockDispatch` |
+| Passenger registration on an operator's brand, quotes (outside-area / category / schedule rules) | `TestQuoteAndBookingRules` |
+| Idempotent booking (passenger and dispatcher phone bookings) | `TestBookingIdempotency` (5 concurrent retries → 1 booking) |
+| Nearest-eligible dispatch, exclusive offers, reject → next, expiry → next, search timeout, scheduled activation, manual assign | `TestRejectAndExpiryRedispatch`, `TestExclusiveAssignmentConcurrency`, `TestQuoteAndBookingRules` |
+| Trip state machine; completed is final | `TestCompletedTripIsFinal` |
+| Final fare from GPS track with the quote's fare version (estimate fallback) | `TestMVPJourney` step 13, `TestCompletedTripIsFinal` |
+| Cash record (once, note required when ≠ fare), receipt, rating | `TestMVPJourney` steps 14–15 |
+| Operator booking view (events, offers, payments), dispatch board, summary report with definitions | `TestMVPJourney` steps 16–17, `TestQuoteAndBookingRules` |
+| Tenant isolation on every table (API + RLS) | `TestMVPJourney` step 18, `TestMobilityTablesRLS`, `TestTenantIsolation*` |
 
-Verification run (2026-10-11): `make test` →
+Mutation checks (2026-10-11): removing `cardinality(c.issues) = 0` from dispatch eligibility →
+`TestExpiredDocumentsBlockDispatch` fails ("expired-document driver was offered"). Removing the
+offer-state guard in accept → the concurrency test still passes because the driver-busy check
+and unique partial indexes also block it (layered by design, D-017).
+
+Verification run (2026-10-11): `make test-remote` → on the server, PostGIS 16-3.4 + Go 1.26:
 ```
---- PASS: TestOnboardingJourney · TestTenantIsolationAPI · TestTenantIsolationRLS · TestAuditIsAppendOnly
---- PASS: TestSuspensionAndClosure · TestAuthSessions · TestInvalidTenantInput
-ok  github.com/captain-KasH/driveappsaas/services/api/internal/server
+--- PASS: TestCompute, TestEstimateRoute
+--- PASS: TestMVPJourney (1.76s) · TestBookingIdempotency · TestExclusiveAssignmentConcurrency
+--- PASS: TestExpiredDocumentsBlockDispatch · TestCompletedTripIsFinal · TestRejectAndExpiryRedispatch
+--- PASS: TestQuoteAndBookingRules · TestMobilityTablesRLS · TestOnboardingJourney · TestTenantIsolationAPI
+--- PASS: TestTenantIsolationRLS · TestAuditIsAppendOnly · TestSuspensionAndClosure · TestAuthSessions · TestInvalidTenantInput
+ok  internal/fare · ok  internal/server 13.3s
 ```
+
+## Deployment (T-018)
+- Cloudflare: `A taxios.packline.lk → 164.68.97.219`, proxied; SSL mode Full (verified in dashboard).
+- Server: `/data/apps/taxios`, first `deploy.sh` run applied migrations 0001+0002, API container healthy.
+- packline nginx vhost committed (packline `edb4fb3b`); goes live when packline's nginx is recreated (K-011).
 
 ## Not built yet
-All of Stages 2–11: fleet, zones, fares, bookings, dispatch, trips, payments, billing, comms, AI,
-marketplace, white-label, clients (web/mobile), deployment. See `IMPLEMENTATION_PLAN.md`.
+Web and mobile clients; notifications/realtime; online payments; billing, add-ons, usage metering;
+communications; AI; shared marketplace; white-label builds; enterprise licensing; backups for the
+Taxios DB. See IMPLEMENTATION_PLAN.md.
 
 ## MVP journey progress (spec Part 17)
-Operational: 1 ✅ · 2 🟡 (prerequisites come with T-012) · 3–17 ⬜ · 18 🟡 (Stage 1 tables only).
-Monetization: 1–11 ⬜.
+Operational: 1–18 ✅ via API (UI pending, T-019). Monetization: 1–11 ⬜ (Stage 5).
 
 ## Outstanding external dependencies
-PostGIS install (K-001), Docker (K-002), legal review (K-003), payment and SMS sandbox accounts (K-004).
+Legal review (K-003); payment and SMS sandbox accounts (K-004, K-009); routing/maps provider choice (K-010).
 
 ## Change log
-- 2026-10-11 — T-000…T-003 done; T-004 workflow written. Files: `services/api/**`, `Makefile`, `docs/**`, `CLAUDE.md`, CI, compose, `.env.example`.
+- 2026-10-11 — Phase 1 core mobility (T-010…T-017), server test runner, Docker deploy, DNS, nginx vhost. Commit `5c57015`+.
+- 2026-10-11 — T-000…T-003 foundation. Commit `b46f605`.

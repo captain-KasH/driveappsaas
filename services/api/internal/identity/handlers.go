@@ -2,6 +2,7 @@ package identity
 
 import (
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -34,7 +35,14 @@ func Register(mux *http.ServeMux, pool *pgxpool.Pool) {
 	}))
 }
 
+// trustProxy is set only where a reverse proxy we control overwrites X-Real-IP
+// (packline nginx sets it from the Cloudflare-restored client address).
+var trustProxy = os.Getenv("TAXIOS_TRUST_PROXY") == "1"
+
 func RemoteIP(r *http.Request) string {
+	if ip := r.Header.Get("X-Real-IP"); trustProxy && ip != "" {
+		return ip
+	}
 	host := r.RemoteAddr
 	if i := strings.LastIndex(host, ":"); i > 0 {
 		host = host[:i]

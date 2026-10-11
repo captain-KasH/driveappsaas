@@ -13,3 +13,11 @@
 | D-009 | 2026-10-11 | Product name **Taxios** (spec working title MobilityOS) | Owner decision |
 | D-010 | 2026-10-11 | Marketplace bookings fulfilled by exactly one selected operator | Spec forbids duplicate bookings without a rule; allocation can come later as an explicit policy |
 | D-011 | 2026-10-11 | Unknown tenant and non-member both return 404 | Don't reveal which tenant IDs exist |
+| D-012 | 2026-10-11 | Host on the packline server as a separate Docker stack (`/data/apps/taxios`, own PostGIS), served at taxios.packline.lk via packline's nginx | Owner decision; no new server cost. Taxios never shares packline's DB |
+| D-013 | 2026-10-11 | Tests run on the server in Docker (`make test-remote`), not GitHub Actions or the dev Mac | Actions minutes capped; dev Mac lacks PostGIS/Docker |
+| D-014 | 2026-10-11 | Drivers and passengers are tenant members (roles `driver`, `passenger`) with zero staff permissions; their routes use `RoleRoute` | One membership/RLS model for every actor |
+| D-015 | 2026-10-11 | Driver eligibility lives in one SQL view `driver_compliance` (security_invoker); dispatch, approval and go-online all read it | No drift between UI and dispatch rules |
+| D-016 | 2026-10-11 | Fare locked at quote time: a booking keeps the fare rule version of its quote; final fare recomputes with that version using the GPS track (fallback: estimate distance) | Price changes never alter accepted bookings |
+| D-017 | 2026-10-11 | Exclusive assignment = booking row lock + unique partial indexes (one pending offer per booking/driver, one live trip per driver) | Correct under concurrency even if app checks regress |
+| D-018 | 2026-10-11 | Cash only until a payment provider's API is verified; online methods rejected with `payment_method_unavailable` | Spec forbids fabricated provider integrations |
+| D-019 | 2026-10-11 | Dispatch worker runs in-process every 5 s; single API replica until it takes a Postgres advisory lock | Simple; scale-out is a known upgrade |

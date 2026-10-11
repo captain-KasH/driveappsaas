@@ -38,6 +38,7 @@ services:
     environment:
       DATABASE_URL: postgres://taxios_app:${APP_DB_PASSWORD}@db:5432/taxios?sslmode=disable
       ADDR: ":8080"
+      TAXIOS_TRUST_PROXY: "1"
     depends_on:
       db: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
