@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Keyboard, Pressable, Text, View } from "react-native";
 import * as Location from "expo-location";
 import { Field, P, c } from "./ui";
 
@@ -51,7 +51,7 @@ export function PlaceSearch({ label, value, onChange, placeholder }: { label: st
       <Field label={label} value={q} placeholder={placeholder} onChangeText={(t) => { setQ(t); if (value) onChange(null); }} autoCorrect={false} />
       {err && !value ? <P muted small>{err}</P> : null}
       {!value && results.map((r) => (
-        <Pressable key={`${r.lat},${r.lng}`} accessibilityRole="button" onPress={() => { onChange(r); setResults([]); }}
+        <Pressable key={`${r.lat},${r.lng}`} accessibilityRole="button" onPress={() => { Keyboard.dismiss(); onChange(r); setResults([]); }}
           style={{ padding: 10, backgroundColor: c.surface, borderRadius: 8, borderWidth: 1, borderColor: c.line }}>
           <Text style={{ color: c.text }}>{r.address}</Text>
         </Pressable>

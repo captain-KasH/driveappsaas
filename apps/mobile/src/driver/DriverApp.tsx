@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Linking, Platform, View } from "react-native";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
-import { ago, api, config, km, money, onSignedOut, session, signIn, signOut, upload, type Me, type Membership, type PublicTenant } from "../api";
+import { ApiError, ago, api, config, km, money, onSignedOut, session, signIn, signOut, upload, type Me, type Membership, type PublicTenant } from "../api";
 import { Badge, Button, Card, Chip, ErrorText, FareLines, Field, H1, H2, Header, Loading, Note, P, Row, Screen, ThemeProvider, useAction, usePoll } from "../ui";
 
 const ISSUE_TEXT: Record<string, string> = {
@@ -29,7 +29,8 @@ type Offer = { id: string; expiresAt: string; distanceToPickupM: number | null; 
 
 /** Driver app: sign in (invited by the operator) → choose business → go online → offers → trip steps → cash. */
 export default function DriverApp() {
-  const [state, setState] = useState<"loading" | "signedOut" | "ready">("loading");
+  const [state, setState] = useState<"loading" | "signedOut" | "ready" | "offline">("loading");
+  const [loadErr, setLoadErr] = useState<unknown>(null);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [tenant, setTenant] = useState<Membership | null>(null);
 
@@ -41,7 +42,11 @@ export default function DriverApp() {
       setMemberships(mine);
       setTenant(mine.length === 1 ? mine[0] : null);
       setState("ready");
-    } catch { setState("signedOut"); }
+    } catch (e) {
+      // Only a rejected session signs the driver out; a network or server error keeps the session.
+      if (e instanceof ApiError && e.status === 401) return setState("signedOut");
+      setLoadErr(e); setState("offline");
+    }
   }, []);
   useEffect(() => { loadMe(); }, [loadMe]);
   useEffect(() => onSignedOut(() => setState("signedOut")), []);
@@ -49,6 +54,13 @@ export default function DriverApp() {
   const out = async () => { await signOut(); setTenant(null); setState("signedOut"); };
   if (state === "loading") return <Screen><Loading /></Screen>;
   if (state === "signedOut") return <SignIn onSignedIn={loadMe} />;
+  if (state === "offline") return (
+    <Screen header={<Header />}>
+      <H1>Can't reach the server</H1>
+      <ErrorText error={loadErr} />
+      <Button title="Try again" onPress={() => { setState("loading"); loadMe(); }} />
+    </Screen>
+  );
   if (memberships.length === 0) return (
     <Screen header={<Header right={<Button kind="link" title="Sign out" onPress={out} />} />}>
       <H1>No driver account yet</H1>
@@ -110,23 +122,33 @@ function Driving({ m, onSignOut, onSwitch }: { m: Membership; onSignOut: () => v
   // ponytail: background tracking (expo-task-manager + "always" permission) needs a dev build — T-152b.
   const sharing = !!me && (me.driver.availability !== "offline" || !!trip);
   const last = useRef(0);
+  const lastPos = useRef<{ lat: number; lng: number } | null>(null);
   useEffect(() => {
     if (!sharing) { setGps("off"); return; }
     let sub: Location.LocationSubscription | null = null;
     let cancelled = false;
+    const send = (lat: number, lng: number, at = Date.now()) => {
+      last.current = Date.now();
+      api("POST", `${base}/driver/location`, { lat, lng, recordedAt: new Date(at).toISOString() }).catch(() => {});
+    };
+    // The OS only reports movement, so a parked driver would go stale (> LocationFreshness) and stop
+    // getting offers. Re-send the last fix every 30 s while online; the server stamps it as fresh.
+    const heartbeat = setInterval(() => {
+      if (lastPos.current && Date.now() - last.current >= 30_000) send(lastPos.current.lat, lastPos.current.lng);
+    }, 10_000);
     (async () => {
       setGps("waiting");
       const perm = await Location.requestForegroundPermissionsAsync();
       if (perm.status !== "granted") { setGps("denied"); return; }
       sub = await Location.watchPositionAsync({ accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 10 }, (p) => {
         setGps("ok");
+        lastPos.current = { lat: p.coords.latitude, lng: p.coords.longitude };
         if (Date.now() - last.current < 10_000) return;
-        last.current = Date.now();
-        api("POST", `${base}/driver/location`, { lat: p.coords.latitude, lng: p.coords.longitude, recordedAt: new Date(p.timestamp).toISOString() }).catch(() => {});
+        send(p.coords.latitude, p.coords.longitude, p.timestamp);
       });
       if (cancelled) sub.remove();
     })();
-    return () => { cancelled = true; sub?.remove(); };
+    return () => { cancelled = true; clearInterval(heartbeat); sub?.remove(); };
   }, [sharing, base]);
 
   const header = <Header right={<Row>{onSwitch && <Button kind="link" title="Switch" onPress={onSwitch} />}<Button kind="link" title="Sign out" onPress={onSignOut} /></Row>} />;

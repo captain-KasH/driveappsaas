@@ -82,6 +82,21 @@ Operational: 1–18 ✅ via API (UI pending, T-019). Monetization: 1–11 ⬜ (S
 ## Outstanding external dependencies
 Legal review (K-003); payment and SMS sandbox accounts (K-004, K-009); routing/maps provider choice (K-010).
 
+## Mobile apps — device run (2026-10-11, local stack)
+`scripts/dev-local.sh up` (throwaway PostGIS on :5433 + API on :8080) and `scripts/dev-seed.py` (operator `lanka-test`, approved
+driver + car). Passenger app on the iPhone 17 Pro simulator, driver app on an iPhone 17 simulator, both in Expo Go (SDK 57):
+1. Passenger: operator code → branded join screen (blue, tagline, support phone) → account created → current location
+   ("Janadhipathi Mawatha, L B Gate, Fort") → drop-off search ("Galle Face Hotel") → Car → quote LKR 337.00
+   (100 base + 187 distance + 30 time + 20 fee) → booked TX-UZCTJZW.
+2. Driver: signed in, online, GPS shared → offer with 30 s countdown, pickup 0.1 km away, first name only → accepted →
+   on my way → arrived → start (passenger saw each state + driver card "Nimal · CAB-1234, White Toyota Axio").
+3. Simulator GPS moved along Galle Road: 5 points, 1,672 m track → complete → final fare LKR 270.00 from the GPS track
+   (142.12 distance, 5.58 time, 2.30 minimum adjustment) → cash confirmed (`payments.kind=cash_collected`, 27000).
+4. Passenger receipt "distance measured by GPS", "paid in cash (LKR 270.00)", 5-star rating → "Thanks for your feedback".
+Bugs found by the run and fixed: stationary drivers went stale (OS reports only movement) → 30 s location heartbeat;
+any server error showed the sign-in screen → only a 401 signs out; receipt not refreshed after cash confirmation;
+keyboard stayed open after choosing an address. Not run on Android (no emulator; the owner's S23 was in use).
+
 ## M4 progress (2026-10-11)
 Backend commit `12bdb24`, web commit `f92957e`: migration 0003, `/signup/ /verify/ /forgot/ /reset/ /start/` pages, console Setup
 tab with business details + computed checklist + "Submit for review" / "Go live", `/admin/` verification queue with

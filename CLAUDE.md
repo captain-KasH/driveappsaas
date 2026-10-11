@@ -27,6 +27,8 @@ make test          # same, locally — needs Postgres 16 + PostGIS (dev Mac has 
 ```
 Mobile (`apps/mobile`, Expo SDK 57): `npm run passenger` / `npm run driver` (Metro on 8081/8082), open in Expo Go;
 `APP_VARIANT` picks the app, `TAXIOS_TENANT=<slug>` pins an operator build, `TAXIOS_API_URL` overrides the API.
+Local device testing (never on prod data): `scripts/dev-local.sh up` → `python3 scripts/dev-seed.py` → start the apps with
+`TAXIOS_API_URL=http://localhost:8080`. Test logins live in `scripts/dev-seed.py` (passenger: signed up in-app as rider@taxios.test).
 Deploy (manual, no CI): `ssh appuser@164.68.97.219` then `cd /data/apps/taxios && ./deploy/deploy.sh`
 (tests → build → migrate → recreate → smoke). Live at https://taxios.packline.lk. See `docs/DEPLOYMENT_RUNBOOK.md`.
 Server access is ONLY `appuser@164.68.97.219` — never root/sudo. Taxios has its own stack/DB; never touch packline's

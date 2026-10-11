@@ -38,7 +38,10 @@ export default function PassengerApp() {
     try {
       const me = await api<Me>("GET", "/v1/me");
       setMember(me.memberships.some((m) => m.tenantId === op.tenant.id && m.role === "passenger") ? "yes" : "no");
-    } catch { setMember("no"); }
+    } catch (e) {
+      // A server/network error must not look like "signed out"; keep the session and let Home retry.
+      setMember(e instanceof ApiError && e.status === 401 ? "no" : "yes");
+    }
   }, []);
   useEffect(() => { if (operator) checkMember(operator); }, [operator, checkMember]);
 
@@ -221,10 +224,12 @@ function Active({ base, id, onClose }: { base: string; id: string; onClose: () =
   const [receipt, setReceipt] = useState<any>(null);
   const act = useAction();
   const load = useCallback(() => api<{ booking: any }>("GET", `${base}/my/bookings/${id}`).then((r) => setB(r.booking)).catch(act.setError), [base, id, act.setError]);
-  usePoll(load, 4000);
-  useEffect(() => {
-    if (b?.status === "completed" && !receipt) api<{ receipt: any }>("GET", `${base}/my/bookings/${id}/receipt`).then((r) => setReceipt(r.receipt)).catch(() => {});
-  }, [b?.status, base, id, receipt]);
+  // Poll the booking until it's done, then the receipt until the driver has confirmed the cash.
+  const loadReceipt = useCallback(() => api<{ receipt: any }>("GET", `${base}/my/bookings/${id}/receipt`).then((r) => setReceipt(r.receipt)).catch(() => {}), [base, id]);
+  usePoll(() => {
+    if (b?.status !== "completed") load();
+    else if (receipt?.paymentStatus !== "paid_cash") loadReceipt();
+  }, 4000);
   if (!b) return <Loading />;
   const state = b.status === "assigned" ? b.trip?.status : b.status;
   const cancellable = ["scheduled", "searching"].includes(b.status) || (b.status === "assigned" && b.trip?.status !== "in_progress");
