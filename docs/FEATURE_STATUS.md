@@ -5,21 +5,21 @@ Evidence conventions: test names live in `services/api/internal/server/*_test.go
 
 | § | Capability | Status | Evidence / gap | Next task |
 |---|---|---|---|---|
-| 6 | Tenant model: id, slug, names, status, timezone, currency, audit | 🟡 | `tenants` has slug/name/status/timezone/currency; missing legal name, registration/tax, contact/billing, country/locale/language, business type, branding, plan, domains, provider settings | T-120 |
+| 6 | Tenant model: id, slug, names, status, timezone, currency, audit | 🟡 | + legal name, registration/tax, contacts, billing, address, language, verification (0003). Missing branding, plan, domains, provider settings | T-007, M10 |
 | 6 | Tenant context resolution + RLS isolation (API, DB) | ✅ | `TestTenantIsolationAPI`, `TestTenantIsolationRLS`, `TestMobilityTablesRLS` | — |
 | 6 | Isolation for jobs / WebSocket / webhooks / uploads / AI / billing | 🟡 | worker uses scoped `InTx`; others don't exist yet | T-030, T-031, T-130 |
 | 6 | Audited platform-support access | ⬜ | | T-020 |
 | 7 | Email+password, sessions, logout, revocation | ✅ | `TestAuthSessions` | — |
-| 7 | Password reset, email verification | ⬜ | | T-110 (⛔ email provider for prod) |
+| 7 | Password reset, email verification | ✅ | `TestPasswordReset`, `TestSelfServiceOnboarding`; delivery needs SMTP creds (K-019), manual verification by staff meanwhile | T-040 |
 | 7 | Refresh / long-lived mobile sessions | ⬜ | | T-112 |
 | 7 | MFA | ⬜ | | T-006 |
 | 7 | Rate limiting / brute force | 🟡 | per-IP at edge only | T-005 |
 | 7 | Phone OTP | ⬜ | | T-041 ⛔ |
 | 7 | Roles: owner/admin/dispatcher/finance/viewer/driver/passenger; platform super_admin/support | ✅ | `permissions.go`, `TestOnboardingJourney` | fleet manager role → T-122 |
 | 7 | Invitations, staff onboarding/offboarding | 🟡 | invite ✅; offboarding (remove member) ⬜ | T-113 |
-| 8 | Self-service registration → business → verification → plan → checklist → publish | ⬜ | only admin-created tenants + invite link | T-121…T-123 |
+| 8 | Self-service registration → business → verification → plan → checklist → publish | 🟡 | register/verify/business/checklist/submit/approve ✅ (`TestSelfServiceOnboarding`); document upload ⬜ (T-122), plan step ⬜ (M10) | T-122 |
 | 8 | CSV import | ⬜ | | T-127 |
-| 9 | Platform console | 🟡 | live `/admin/`: create, list, status. Nothing else | T-124, T-125 |
+| 9 | Platform console | 🟡 | live `/admin/`: verification queue, search/filter, business detail, create, status, manual email verification. No plans/usage/flags/audit/announcements yet | T-124, T-125 |
 | 10 | Operator dashboard | 🟡 | live `/console/`: overview, setup, drivers, vehicles, bookings, dispatch, team. Missing customers, promotions, branding, integrations, subscription, exports, support | T-126 |
 | 11 | Drivers: profile, approval, docs expiry, vehicle assignment, availability, suspension | ✅ | `TestMVPJourney`, `TestExpiredDocumentsBlockDispatch` | — |
 | 11 | Driver document **files**, expiry alerts, earnings/commission, shifts, performance | ⬜ | | T-130, T-132, T-134 |

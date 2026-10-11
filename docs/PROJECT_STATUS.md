@@ -6,7 +6,7 @@ _Last updated: 2026-10-11_
 Master prompt v2 adopted 2026-10-11 (`MASTER_PROMPT.md`, D-020…D-025). Audit: `PROJECT_AUDIT.md`;
 per-section status: `FEATURE_STATUS.md`; roadmap: `IMPLEMENTATION_PLAN.md` (M1–M14).
 The ride engine is verified end to end (`TestMVPJourney`) and the web app is live at https://taxios.packline.lk.
-**Milestone now: M4** (self-service onboarding + platform console v2). **Next task: T-103/T-104, then T-120.**
+**Milestone now: M4.** Done: T-110, T-120, T-121, T-123; T-124 partial. **Next task: T-122 (verification document uploads — needs storage decision K-020), then T-126 (customers/settings/exports), T-113, T-112.**
 
 Baseline before M1 changes (2026-10-11, `make test-remote`, PostGIS 16-3.4 + Go 1.26 on the server):
 `ok internal/fare 0.014s · ok internal/server 14.741s` (18 tests, all pass).
@@ -28,6 +28,8 @@ Baseline before M1 changes (2026-10-11, `make test-remote`, PostGIS 16-3.4 + Go 
 | Cash record (once, note required when ≠ fare), receipt, rating | `TestMVPJourney` steps 14–15 |
 | Operator booking view (events, offers, payments), dispatch board, summary report with definitions | `TestMVPJourney` steps 16–17, `TestQuoteAndBookingRules` |
 | Tenant isolation on every table (API + RLS) | `TestMVPJourney` step 18, `TestMobilityTablesRLS`, `TestTenantIsolation*` |
+| Self-service sign-up → email verification → draft business → business details → checklist → submit → super admin reject/approve → public booking page (D-021) | `TestSelfServiceOnboarding` (mutation-checked: removing the email-verified guard fails it), `TestDraftBusinessLimit`, `TestAdminCreatedTenantIsTrusted` |
+| Password reset (single-use 1 h token, revokes every session, proves email), manual email verification by platform staff (K-019) | `TestPasswordReset`, `TestManualEmailVerification` |
 
 Mutation checks (2026-10-11): removing `cardinality(c.issues) = 0` from dispatch eligibility →
 `TestExpiredDocumentsBlockDispatch` fails ("expired-document driver was offered"). Removing the
@@ -80,6 +82,13 @@ Operational: 1–18 ✅ via API (UI pending, T-019). Monetization: 1–11 ⬜ (S
 ## Outstanding external dependencies
 Legal review (K-003); payment and SMS sandbox accounts (K-004, K-009); routing/maps provider choice (K-010).
 
+## M4 progress (2026-10-11)
+Backend commit `12bdb24`, web commit `f92957e`: migration 0003, `/signup/ /verify/ /forgot/ /reset/ /start/` pages, console Setup
+tab with business details + computed checklist + "Submit for review" / "Go live", `/admin/` verification queue with
+search/filter, business detail, manual email verification. Suite: 23 tests green on the server before deploy.
+Live verification 2026-10-11 after `Deploy succeeded: f92957e` (suite green on the server first): `/signup/ /verify/ /forgot/ /reset/ /start/ /admin/` → 200 and `/signup/` renders without console errors; `register` with a bad email → 422 `invalid_email`; `verify-email` bad token → 404 `invalid_token`; `forgot-password` unknown email → 200 `{sent}`; `POST /v1/businesses` unauthenticated → 401; packline.lk → 200. Signed-in walk-through still pending (K-016, needs the owner's super-admin login).
+
 ## Change log
+- 2026-10-11 — M1 (audit, competitor matrix, web typecheck/build in the test stack) `4ae9940`, `f87592a`; M4 onboarding API `12bdb24` + web `f92957e`.
 - 2026-10-11 — Phase 1 core mobility (T-010…T-017), server test runner, Docker deploy, DNS, nginx vhost. Commit `5c57015`+.
 - 2026-10-11 — T-000…T-003 foundation. Commit `b46f605`.

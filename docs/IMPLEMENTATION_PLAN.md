@@ -31,7 +31,7 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 | ID | Task | P | Acceptance | Status |
 |---|---|---|---|---|
 | T-002 / T-003 | Identity, tenancy, RLS, roles, invitations, audit | P0 | | ✅ |
-| T-110 | Email verification + password reset (hashed single-use tokens; delivery via T-040, dev fallback = token in API response only when `TAXIOS_DEV_TOKENS=1`) | P0 | tests: unverified can't create a business; reset token single-use | ⬜ |
+| T-110 | Email verification + password reset (hashed single-use tokens; SMTP from env or logged; `TAXIOS_DEV_TOKENS=1` returns tokens in tests) | P0 | tests: unverified can't create a business; reset token single-use | ✅ `TestSelfServiceOnboarding`, `TestPasswordReset` (2026-10-11) |
 | T-112 | Long-lived mobile sessions + refresh/rotation + "sign out everywhere" | P0 | | ⬜ |
 | T-113 | Remove/deactivate staff member; session revocation on removal | P0 | | ⬜ |
 | T-005 | Per-account login limiting in-app | P1 | 11th attempt → 429 | 🟡 |
@@ -41,11 +41,11 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 ## M4 — Tenant onboarding and platform administration  ← **current**
 | ID | Task | P | Acceptance | Status |
 |---|---|---|---|---|
-| T-120 | Tenant business profile: legal name, business type, registration/tax no., country, locale, language, contact + billing contact; status `draft → pending_verification → active → suspended/closed` (D-021); migration + PATCH + tests | P0 | state machine tested; existing tenants migrate to `active` | ⬜ |
-| T-121 | Self-service: `POST /v1/auth/register` (verified email required), `POST /v1/businesses` creates a draft tenant with the caller as owner; web `/signup/` | P0 | test: register → verify → create business → appears in verification queue | ⬜ |
-| T-122 | Verification documents (business registration, owner ID) via object storage with signed URLs; platform verification queue approve/reject with reason; audited | P0 | tenant can't go `active` without approval | ⬜ |
-| T-123 | Resumable onboarding checklist API (computed from real data: profile, docs, zone, category, fare, vehicle, driver, branding, staff, publish) + web wizard | P0 | checklist reflects DB state; no client-side-only progress | ⬜ |
-| T-124 | Platform console v2: tenant directory + search, verification queue, tenant detail (status, plan, usage, audit), global audit log, announcements | P0 | live screens call real endpoints | ⬜ |
+| T-120 | Tenant business profile: legal name, registration/tax no., contacts, billing, address, timezone/currency/language; status `onboarding → pending_verification → active → suspended/closed` (D-021); migration 0003 + PATCH + tests | P0 | state machine tested; existing tenants marked verified | ✅ `TestSelfServiceOnboarding`, `TestAdminCreatedTenantIsTrusted` |
+| T-121 | Self-service: `POST /v1/auth/register`, `POST /v1/businesses` (verified email, max 3 drafts); web `/signup/`, `/verify/`, `/forgot/`, `/reset/`, `/start/` | P0 | test: register → verify → create business → appears in verification queue | ✅ mutation-checked (email-verified guard removed → test fails) |
+| T-122 | Verification documents (business registration, owner ID) via object storage with signed URLs (K-020) | P0 | reviewer sees the uploaded certificate | ⬜ (queue + approve/reject + audit ✅ in T-123; uploads need storage) |
+| T-123 | Resumable onboarding checklist API (computed from rows) + console Setup tab (business details card, checklist, submit/go-live) + platform approve/reject | P0 | checklist reflects DB state; no client-side-only progress | ✅ `GET /onboarding`; UI deployed |
+| T-124 | Platform console v2: tenant directory + search/filter ✅, verification queue ✅, tenant detail (profile ✅; plan/usage/audit ⬜), global audit log ⬜, announcements ⬜, manual email verification ✅ | P0 | live screens call real endpoints | 🟡 |
 | T-125 | Platform feature flags (global + per-tenant overrides) read through the entitlement hook | P1 | | ⬜ |
 | T-126 | Operator dashboard additions: customers, settings (profile/locale), branding tab (reads T-007), subscription tab (reads M10), exports (CSV) | P0 | | ⬜ |
 | T-127 | CSV import for drivers and vehicles with validation report + duplicate handling | P1 | | ⬜ |

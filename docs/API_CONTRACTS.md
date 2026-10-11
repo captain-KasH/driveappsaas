@@ -19,13 +19,22 @@ Rate limits: enforced at the edge (see end of file); none in-app yet. Audit colu
 | `POST /v1/auth/login` | none | — | `{email,password}` | 200 `{token,userId,platformRole}` | 401 `invalid_credentials` (same for unknown email) | |
 | `POST /v1/auth/logout` | session | — | — | 204 | | |
 | `POST /v1/auth/accept-invite` | invitation token | platform (by token hash) | `{token,fullName,password}` | 200 `{token,tenantId,role}` | 404 `invalid_invitation`, 422 `weak_password`/`name_required`, 401 `invalid_credentials` (existing account, wrong password) | ✓ |
-| `GET /v1/me` | session | user | — | 200 `{user, memberships[]}` | | |
+| `GET /v1/me` | session | user | — | 200 `{user{…,emailVerified}, memberships[]}` | | |
+| `POST /v1/auth/register` | none | platform (new user) | `{email,fullName,password}` | 201 `{token,userId,emailVerified:false}` (+`verifyToken` only with `TAXIOS_DEV_TOKENS=1`) | 409 `email_taken`, 422 `invalid_email`/`name_required`/`weak_password` | ✓ |
+| `POST /v1/auth/verify-email` | none | platform (by token hash) | `{token}` | 200 `{emailVerified:true}` | 404 `invalid_token` (used/expired, 24 h) | ✓ |
+| `POST /v1/auth/resend-verification` | session | user | — | 200 `{sent}` | 409 `already_verified` | |
+| `POST /v1/auth/forgot-password` | none | platform | `{email}` | 200 `{sent}` always (no enumeration) | | |
+| `POST /v1/auth/reset-password` | none | platform (by token hash) | `{token,password}` | 200 `{token,userId}` — all other sessions revoked; email counts as verified | 404 `invalid_token` (1 h), 422 `weak_password` (checked before the token is spent) | ✓ |
+| `POST /v1/businesses` | session, email verified | platform (first membership) | `{slug,name,businessType,countryCode?}` | 201 `{tenant}` (status `onboarding`, caller = owner) | 403 `email_unverified`, 409 `slug_taken`/`too_many_drafts` (3), 422 `invalid_tenant` | ✓ |
+| `POST /v1/platform/users/verify-email` | `super_admin` | platform | `{email}` | 200 `{emailVerified:true}` | 404 `user_not_found` | ✓ (K-019 stop-gap) |
+| `POST /v1/platform/tenants/{id}/verification` | `super_admin` | platform | `{decision: approve\|reject, note?}` (note ≥3 chars to reject) | 200 `{tenant}` — approve: `verifiedAt` set, `pending_verification → active`; reject: back to `onboarding` with `statusReason` | 422 `invalid_decision`/`reason_required`, 409 `invalid_transition` (closed), 404 | ✓ |
+| `GET /v1/tenants/{id}/onboarding` | `tenant.read` | tenant | — | 200 `{status,verified,canSubmit,steps[{key,done,required,missing?}]}` — computed from rows (profile, zone, category, fare, vehicle, driver, staff, verification, live) | | |
 | `POST /v1/platform/tenants` | `super_admin` | platform | `{slug,name,businessType,countryCode?,ownerEmail}` | 201 `{tenant, ownerInvitation{email,role,token,expiresAt}}` | 409 `slug_taken`, 422 `invalid_tenant`/`invalid_email` | ✓ |
-| `GET /v1/platform/tenants` | `super_admin`,`support` | platform | — | 200 `{tenants[]}` (≤200, newest first) | | |
+| `GET /v1/platform/tenants` | `super_admin`,`support` | platform | `?status=&q=` (q matches name/slug/legal name) | 200 `{tenants[]}` (≤200, pending verification first, then newest) | | |
 | `POST /v1/platform/tenants/{id}/status` | `super_admin` | platform | `{status,reason}` | 200 `{tenant}` | 422 `reason_required`, 409 `invalid_transition`, 404 | ✓ |
 | `GET /v1/tenants/{id}` | member · `tenant.read` | tenant | — | 200 `{tenant,myRole}` | 404 non-member | |
-| `PATCH /v1/tenants/{id}` | `tenant.manage` | tenant, write | `{name}` | 200 `{tenant}` | 422 `invalid_name`, 403 `tenant_inactive` | ✓ |
-| `POST /v1/tenants/{id}/onboarding/complete` | owner | tenant, write | — | 200 `{tenant}` | 409 `invalid_transition` | ✓ |
+| `PATCH /v1/tenants/{id}` | `tenant.manage` | tenant, write | any of `{name,legalName,registrationNo,taxNo,contactEmail,contactPhone,billingEmail,address,timezone,currency,language}` (`""` clears an optional field) | 200 `{tenant}` | 422 `invalid_<field>`/`invalid_input`, 403 `tenant_inactive` | ✓ |
+| `POST /v1/tenants/{id}/onboarding/complete` | owner | tenant, write | — | 200 `{tenant,checklist}` — verified tenant → `active`; self-registered → `pending_verification` (D-021) | 409 `onboarding_incomplete` (lists missing steps) / `invalid_transition` | ✓ |
 | `GET /v1/tenants/{id}/members` | `staff.read` | tenant | — | 200 `{members[]}` | | |
 | `POST /v1/tenants/{id}/invitations` | `staff.manage` (owner for role=owner) | tenant, write | `{email,role}` | 201 `{invitation}` | 422 `invalid_email`/`invalid_role` | ✓ |
 | `GET /v1/tenants/{id}/audit-events` | `audit.read` | tenant | — | 200 `{events[]}` (latest 100) | | |
