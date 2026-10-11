@@ -5,7 +5,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-git pull --ff-only
+# bash reads a script lazily, so pulling a new deploy.sh mid-run would execute a mix of old and
+# new lines (happened 2026-10-11). Pull, then re-exec the fresh file once.
+if [ "${1:-}" != "--pulled" ]; then
+  git pull --ff-only
+  exec "$0" --pulled
+fi
 
 if [ ! -f deploy/.env ]; then
   umask 077

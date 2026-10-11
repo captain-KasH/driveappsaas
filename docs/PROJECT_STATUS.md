@@ -89,6 +89,7 @@ search/filter, business detail, manual email verification. Suite: 23 tests green
 Live verification 2026-10-11 after `Deploy succeeded: f92957e` (suite green on the server first): `/signup/ /verify/ /forgot/ /reset/ /start/ /admin/` → 200 and `/signup/` renders without console errors; `register` with a bad email → 422 `invalid_email`; `verify-email` bad token → 404 `invalid_token`; `forgot-password` unknown email → 200 `{sent}`; `POST /v1/businesses` unauthenticated → 401; packline.lk → 200. Signed-in walk-through still pending (K-016, needs the owner's super-admin login).
 
 ## Change log
+- 2026-10-11 — D-026 docker naming: `Deploy succeeded: 5a15cc3`; server shows only `taxios-api`, `taxios-db` (+ `taxios_internal`, `taxios_db`, `taxios-api:latest`, `taxios-test_*`) beside `voiceai-*` and `packlink-*`.
 - 2026-10-11 — M1 (audit, competitor matrix, web typecheck/build in the test stack) `4ae9940`, `f87592a`; M4 onboarding API `12bdb24` + web `f92957e`.
 - 2026-10-11 — Phase 1 core mobility (T-010…T-017), server test runner, Docker deploy, DNS, nginx vhost. Commit `5c57015`+.
 - 2026-10-11 — T-000…T-003 foundation. Commit `b46f605`.
