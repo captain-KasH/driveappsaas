@@ -27,7 +27,7 @@ Priority: P0 blocks the MVP journey · P1 needed for commercial MVP · P2 later.
 | T-015 | Booking create with `Idempotency-Key`, tenant isolation on bookings | T-014 | P0 | scenario 1 + 3 tests | ✅ |
 | T-016 | Drivers, vehicles, documents + approval; dispatch (manual + nearest eligible, offers, expiry, locking) | T-015 | P0 | scenario 2 (parallel assignment) + 11 tests | ✅ |
 | T-017 | Trip lifecycle + final fare + cash collection record, receipt, rating, summary report | T-016 | P0 | scenario 12 test; MVP steps 1–18 via API (`TestMVPJourney`) | ✅ |
-| T-018 | Deploy to taxios.packline.lk (Docker on packline server, nginx vhost, Cloudflare DNS) | T-017 | P0 | public `/healthz` 200 via Cloudflare; deploy script smoke test passes | 🔄 |
+| T-018 | Deploy to taxios.packline.lk (Docker on packline server, nginx vhost, Cloudflare DNS) | T-017 | P0 | public `/healthz` 200 via Cloudflare; deploy script smoke test passes | ✅ 2026-10-11 |
 | T-019 | Stage 3 clients: operator/dispatcher web console + passenger web booking (Next.js), then RN passenger/driver apps | T-017 | P0 | MVP journey executable through UI | ⬜ next |
 | T-020 | Reason-coded, time-limited, audited support access to tenant data | T-003 | P1 | grant expires; every read audited | ⬜ |
 

@@ -45,7 +45,11 @@ ok  internal/fare · ok  internal/server 13.3s
 ## Deployment (T-018)
 - Cloudflare: `A taxios.packline.lk → 164.68.97.219`, proxied; SSL mode Full (verified in dashboard).
 - Server: `/data/apps/taxios`, first `deploy.sh` run applied migrations 0001+0002, API container healthy.
-- packline nginx vhost committed (packline `edb4fb3b`); goes live when packline's nginx is recreated (K-011).
+- packline nginx vhost committed (packline `edb4fb3b`), live after packline's 10:27 deploy recreated nginx (K-011).
+- Public verification 2026-10-11 against https://taxios.packline.lk (commit `3aaa149`): `/healthz` → 200 `{"status":"ok"}`;
+  unknown brand → 404 JSON; `/v1/me` without token → 401; 9 rapid bad logins → `401×6, 429×3` (edge limit);
+  `deploy.sh` ran the full suite on the server before deploying (ok fare, ok server 11.9s); container healthy.
+  packline.lk stayed 200 throughout.
 
 ## Not built yet
 Web and mobile clients; notifications/realtime; online payments; billing, add-ons, usage metering;
