@@ -61,6 +61,12 @@ passenger booking (sign up/in, map + address search, quote, book, live driver, c
 Verified live: landing, sign-in, unknown operator message, all assets 200, no unexpected console errors.
 `/v1/*` unknown paths still return JSON 404. Not yet verified: the signed-in flows in the browser (K-016).
 
+## Server validation (2026-10-11, after the alias incident K-017)
+- DNS: taxios.packline.lk and packline.lk resolve to Cloudflare from 8.8.8.8, 1.1.1.1 and 9.9.9.9.
+- packline.lk / www / `/healthz` → 200 with packline's own page; taxios.packline.lk `/`, `/login/`, `/healthz` → 200 Taxios.
+- Shared network aliases: `api` → packline only, `taxios-api` → Taxios only; 30/30 packline `/v1/flash-sales/active` → 200.
+- `deploy.sh` end to end: tests ok → `Deploy succeeded: cbdc510`; containers `taxios-api`, `taxios-db-1` healthy; nginx config valid.
+
 ## Not built yet
 Mobile (React Native) apps; notifications/realtime; online payments; billing, add-ons, usage metering;
 communications; AI; shared marketplace; white-label builds; enterprise licensing; backups for the
