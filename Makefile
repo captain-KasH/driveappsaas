@@ -38,5 +38,5 @@ serve:
 SERVER := appuser@164.68.97.219
 REMOTE_CI := /data/apps/taxios-ci
 test-remote:
-	rsync -az --delete --exclude .git --exclude 'deploy/.env' ./ $(SERVER):$(REMOTE_CI)/
-	ssh $(SERVER) 'cd $(REMOTE_CI) && TEST_ARGS="$(TEST_ARGS)" deploy/test.sh'
+	rsync -az --delete --exclude .git --exclude 'deploy/.env' --exclude node_modules --exclude .next --exclude 'apps/web/out' ./ $(SERVER):$(REMOTE_CI)/
+	ssh $(SERVER) 'cd $(REMOTE_CI) && TEST_ARGS="$(TEST_ARGS)" SKIP_WEB="$(SKIP_WEB)" deploy/test.sh'

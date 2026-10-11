@@ -14,9 +14,9 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 |---|---|---|---|---|
 | T-000 | Initial audit, docs, CLAUDE.md | P0 | | ✅ |
 | T-101 | Re-audit against master prompt v2: PROJECT_AUDIT, FEATURE_STATUS, roadmap, decisions | P0 | docs reflect the real tree; baseline suite green | ✅ 2026-10-11 |
-| T-102 | Competitor feature matrix (Onde, Yelowsoft, TaxiCaller, iCabbi, …) with sources and dates; MVP vs long-term | P0 | `COMPETITOR_FEATURE_MATRIX.md` | 🟡 research running |
-| T-103 | Root `.env.example`; startup validation of required env (serve/migrate) with one clear error | P0 | `serve` without `DATABASE_URL` exits with a named error | ⬜ |
-| T-104 | `deploy/test.sh` also runs `gofmt -l`, `go vet`, `tsc --noEmit`, `next build` | P0 | a type error fails `make test-remote` | ⬜ |
+| T-102 | Competitor feature matrix (Onde, Yelowsoft, TaxiCaller, iCabbi, Autocab, Jugnoo, Limo Anywhere, Gazoop, Cabica) with 40 dated sources; MVP vs long-term; pricing; Apple 4.2.6 | P0 | `COMPETITOR_FEATURE_MATRIX.md` | ✅ 2026-10-11 (vendor-advertised unless marked 3P/Official) |
+| T-103 | Root `.env.example` lists every variable the binary reads; `mustEnv` exits 2 with `error: X is required` | P0 | `serve` without `DATABASE_URL` exits with a named error | ✅ (`main.go` `mustEnv`; `.env.example` rewritten) |
+| T-104 | `deploy/test.sh` runs `go vet` + `gofmt -l` (already) and now `npm ci && tsc --noEmit && next build` in a `web` service (`SKIP_WEB=1` for API-only loops) | P0 | a type error fails `make test-remote` | ✅ `make test-remote` 2026-10-11: Go ok, `✓ Compiled successfully`, `Finished TypeScript`, 10 static pages |
 | T-105 | Remove unused `.github/workflows/ci.yml` or make it opt-in | P2 | | ⬜ |
 
 ## M2 — Backend and database foundation

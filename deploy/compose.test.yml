@@ -31,6 +31,20 @@ services:
     depends_on:
       db: { condition: service_healthy }
 
+  # Web typecheck + production build (T-104). node_modules lives in a named volume so the
+  # rsync'd tree stays clean and `npm ci` is fast on repeat runs.
+  web:
+    image: node:22-alpine
+    working_dir: /web
+    environment: { NEXT_TELEMETRY_DISABLED: "1" }
+    volumes:
+      - ../apps/web:/web
+      - webmods:/web/node_modules
+      - webnext:/web/.next
+    command: ["sh", "-c", "npm ci --no-audit --no-fund && npx tsc --noEmit && npx next build"]
+
 volumes:
   gomod:
   gobuild:
+  webmods:
+  webnext:
