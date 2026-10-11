@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ago, api, km, money } from "@/lib/api";
+import { ago, api, km, money, openFile } from "@/lib/api";
+import FilePick from "@/components/FilePick";
 import { Badge, ErrorBox, SignOut, Spinner, TopBar, useAction, usePoll } from "@/components/ui";
 import FareLines from "@/components/FareLines";
 import { ISSUE_TEXT } from "@/components/console/ctx";
 
 type DriverMe = {
   driver: { id: string; fullName: string; status: string; availability: string; complianceIssues: string[]; locationAt: string | null; locationFresh: boolean };
-  documents: { id: string; docType: string; number: string; expiresOn: string | null; status: string; reviewNote: string | null }[];
+  documents: { id: string; docType: string; number: string; expiresOn: string | null; status: string; reviewNote: string | null; fileId: string | null }[];
   vehicle: { plate: string; make: string; model: string; colour: string } | null;
 };
 type Offer = { id: string; bookingId: string; expiresAt: string; distanceToPickupM: number | null; pickupAddress: string; dropoffAddress: string;
@@ -186,6 +187,7 @@ function CashCard({ base, booking, onDone }: { base: string; booking: any; onDon
 
 function Documents({ base, me, onChange }: { base: string; me: DriverMe; onChange: () => void }) {
   const [doc, setDoc] = useState({ docType: "driving_licence", number: "", expiresOn: "" });
+  const [docFile, setDocFile] = useState<{ id: string; fileName: string } | null>(null);
   const act = useAction();
   return (
     <details className="card" open={me.driver.complianceIssues.length > 0}>
@@ -196,15 +198,17 @@ function Documents({ base, me, onChange }: { base: string; me: DriverMe; onChang
             <span>{x.docType.replaceAll("_", " ")}</span><span className="mono muted">{x.number}</span>
             {x.expiresOn && <span className="muted">exp. {x.expiresOn}</span>}<Badge value={x.status} />
             {x.reviewNote && <span className="muted">“{x.reviewNote}”</span>}
+            {x.fileId && <button className="linkbtn small" onClick={() => openFile(`${base}/files/${x.fileId}`).catch(act.setError)}>View</button>}
           </div>
         ))}
         <form className="fields" onSubmit={(e) => { e.preventDefault(); act.run(async () => {
-          await api("POST", `${base}/driver/documents`, { ...doc, expiresOn: doc.expiresOn || null });
-          setDoc({ ...doc, number: "", expiresOn: "" }); onChange();
+          await api("POST", `${base}/driver/documents`, { ...doc, expiresOn: doc.expiresOn || null, fileId: docFile?.id ?? null });
+          setDoc({ ...doc, number: "", expiresOn: "" }); setDocFile(null); onChange();
         }); }}>
           <label className="field">Document<select value={doc.docType} onChange={(e) => setDoc({ ...doc, docType: e.target.value })}>{DOC_TYPES.map((x) => <option key={x} value={x}>{x.replaceAll("_", " ")}</option>)}</select></label>
           <label className="field">Number<input required value={doc.number} onChange={(e) => setDoc({ ...doc, number: e.target.value })} /></label>
           <label className="field">Expires<input type="date" value={doc.expiresOn} onChange={(e) => setDoc({ ...doc, expiresOn: e.target.value })} /></label>
+          <FilePick key={docFile?.id ?? "empty"} base={base} value={docFile} onChange={setDocFile} label="Photo of the document" />
           <div style={{ alignSelf: "end" }}><button className="btn" disabled={act.busy}>Submit</button></div>
         </form>
         <ErrorBox error={act.error} />

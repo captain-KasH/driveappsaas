@@ -66,3 +66,29 @@ export const mins = (s: number | null | undefined) => (s == null ? "—" : `${Ma
 
 export type Membership = { tenantId: string; tenantSlug: string; tenantName: string; tenantStatus: string; role: string };
 export type Me = { user: { id: string; email: string; fullName: string; platformRole: string; emailVerified: boolean }; memberships: Membership[] };
+
+/** Uploads one file (multipart) and returns the stored file record. */
+export async function upload(path: string, file: File): Promise<{ id: string; contentType: string; sizeBytes: number; fileName: string }> {
+  const t = token.get();
+  const body = new FormData();
+  body.append("file", file, file.name);
+  let res: Response;
+  try {
+    res = await fetch(path, { method: "POST", headers: { ...(t && { Authorization: `Bearer ${t}` }) }, body });
+  } catch {
+    throw new ApiError(0, "network", "Can't reach Taxios. Check your connection and try again.");
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, data?.error?.code ?? "error", data?.error?.message ?? `Upload failed (${res.status})`);
+  return data.file;
+}
+
+/** Opens an authenticated file in a new tab (the bearer token can't ride on a plain link). */
+export async function openFile(path: string) {
+  const t = token.get();
+  const res = await fetch(path, { headers: { ...(t && { Authorization: `Bearer ${t}` }) } });
+  if (!res.ok) throw new ApiError(res.status, "file_unavailable", "Couldn't open this file.");
+  const url = URL.createObjectURL(await res.blob());
+  window.open(url, "_blank", "noopener");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}

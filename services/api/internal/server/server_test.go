@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -91,6 +92,8 @@ func call(t *testing.T, method, path, token string, body any) resp {
 	json.NewDecoder(res.Body).Decode(&out)
 	return resp{res.StatusCode, out}
 }
+
+func decodeJSON(r io.Reader, dst any) { json.NewDecoder(r).Decode(dst) }
 
 func errCode(r resp) string {
 	e, _ := r.Body["error"].(map[string]any)

@@ -12,3 +12,4 @@ dist/
 !services/api/internal/web/dist/
 .DS_Store
 .claude/settings.local.json
+services/api/data/

@@ -188,14 +188,15 @@ type Document struct {
 	Status     string     `json:"status"`
 	ReviewNote *string    `json:"reviewNote"`
 	ReviewedAt *time.Time `json:"reviewedAt"`
+	FileID     *string    `json:"fileId"`
 }
 
 func documents(r *http.Request, tx pgx.Tx, driverID string) ([]Document, error) {
-	rows, _ := tx.Query(r.Context(), `SELECT id, doc_type, number, to_char(expires_on, 'YYYY-MM-DD'), status, review_note, reviewed_at
+	rows, _ := tx.Query(r.Context(), `SELECT id, doc_type, number, to_char(expires_on, 'YYYY-MM-DD'), status, review_note, reviewed_at, file_id
 		FROM driver_documents WHERE driver_id=$1 ORDER BY created_at DESC`, driverID)
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Document, error) {
 		var d Document
-		return d, row.Scan(&d.ID, &d.DocType, &d.Number, &d.ExpiresOn, &d.Status, &d.ReviewNote, &d.ReviewedAt)
+		return d, row.Scan(&d.ID, &d.DocType, &d.Number, &d.ExpiresOn, &d.Status, &d.ReviewNote, &d.ReviewedAt, &d.FileID)
 	})
 }
 
@@ -236,14 +237,29 @@ func addDocument(r *http.Request, tx pgx.Tx, m Member, driverID string) (Result,
 		DocType   string  `json:"docType"`
 		Number    string  `json:"number"`
 		ExpiresOn *string `json:"expiresOn"` // YYYY-MM-DD
+		FileID    *string `json:"fileId"`    // optional scan/photo uploaded via POST /files
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return Result{}, err
 	}
+	if in.FileID != nil {
+		if !tenancy.UUID(*in.FileID) {
+			return Result{}, invalid("invalid_file", "fileId must be a file uploaded to this business")
+		}
+		// Drivers may only attach files they uploaded themselves; staff may attach any tenant file.
+		var ok bool
+		if err := tx.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM files WHERE id=$1 AND ($2 OR uploaded_by=$3))`,
+			*in.FileID, m.Role != "driver", m.UserID).Scan(&ok); err != nil {
+			return Result{}, err
+		}
+		if !ok {
+			return Result{}, invalid("invalid_file", "fileId must be a file uploaded to this business")
+		}
+	}
 	var id string
-	err := tx.QueryRow(r.Context(), `INSERT INTO driver_documents(tenant_id, driver_id, doc_type, number, expires_on)
-		SELECT $1, d.id, $3, $4, $5::date FROM drivers d WHERE d.id=$2 RETURNING id`,
-		m.TenantID, driverID, in.DocType, strings.TrimSpace(in.Number), in.ExpiresOn).Scan(&id)
+	err := tx.QueryRow(r.Context(), `INSERT INTO driver_documents(tenant_id, driver_id, doc_type, number, expires_on, file_id)
+		SELECT $1, d.id, $3, $4, $5::date, $6 FROM drivers d WHERE d.id=$2 RETURNING id`,
+		m.TenantID, driverID, in.DocType, strings.TrimSpace(in.Number), in.ExpiresOn, in.FileID).Scan(&id)
 	switch code := tenancy.PgCode(err); {
 	case errors.Is(err, pgx.ErrNoRows):
 		return Result{}, httpx.ErrNotFound

@@ -43,7 +43,7 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 |---|---|---|---|---|
 | T-120 | Tenant business profile: legal name, registration/tax no., contacts, billing, address, timezone/currency/language; status `onboarding → pending_verification → active → suspended/closed` (D-021); migration 0003 + PATCH + tests | P0 | state machine tested; existing tenants marked verified | ✅ `TestSelfServiceOnboarding`, `TestAdminCreatedTenantIsTrusted` |
 | T-121 | Self-service: `POST /v1/auth/register`, `POST /v1/businesses` (verified email, max 3 drafts); web `/signup/`, `/verify/`, `/forgot/`, `/reset/`, `/start/` | P0 | test: register → verify → create business → appears in verification queue | ✅ mutation-checked (email-verified guard removed → test fails) |
-| T-122 | Verification documents (business registration, owner ID) via object storage with signed URLs (K-020) | P0 | reviewer sees the uploaded certificate | ⬜ (queue + approve/reject + audit ✅ in T-123; uploads need storage) |
+| T-122 | Verification documents: `files` module (local volume `taxios_files`, tenant-prefixed keys, sniffed type, 10 MB cap), `tenant_documents`, checklist step `documents` required for self-registered tenants, platform detail + audited platform file reads | P0 | reviewer sees the uploaded certificate | ✅ `TestBusinessDocumentsRequiredForSelfService`, `TestFileUploadsAndAccess` |
 | T-123 | Resumable onboarding checklist API (computed from rows) + console Setup tab (business details card, checklist, submit/go-live) + platform approve/reject | P0 | checklist reflects DB state; no client-side-only progress | ✅ `GET /onboarding`; UI deployed |
 | T-124 | Platform console v2: tenant directory + search/filter ✅, verification queue ✅, tenant detail (profile ✅; plan/usage/audit ⬜), global audit log ⬜, announcements ⬜, manual email verification ✅ | P0 | live screens call real endpoints | 🟡 |
 | T-125 | Platform feature flags (global + per-tenant overrides) read through the entitlement hook | P1 | | ⬜ |
@@ -55,7 +55,7 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 | ID | Task | P | Acceptance | Status |
 |---|---|---|---|---|
 | T-016 | Drivers, vehicles, documents, approval | P0 | | ✅ |
-| T-130 | Document file uploads (object storage, tenant-prefixed keys, signed URLs, access audited), expiry alerts job | P0 | cross-tenant signed URL → 404 | ⬜ |
+| T-130 | Driver document scans attached via `fileId` (uploader/driver/fleet staff only; cross-tenant and other-driver reads → 404); expiry alerts job ⬜ | P0 | cross-tenant read → 404 | 🟡 uploads ✅ `TestFileUploadsAndAccess`; alerts ⬜ |
 | T-131 | Vehicle lifecycle: insurance/registration docs, inspection + service dates, maintenance state, capacity, accessibility | P1 | | ⬜ |
 | T-132 | Driver earnings + commission records per trip (configurable % / flat), driver statement | P0 | ledger lines append-only | ⬜ |
 | T-133 | Passenger saved places, preferences, consent, data export + deletion request | P1 | | ⬜ |

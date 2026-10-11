@@ -49,6 +49,7 @@ services:
       ADDR: ":8080"
       TAXIOS_TRUST_PROXY: "1"
       TAXIOS_PUBLIC_URL: https://taxios.packline.lk
+      TAXIOS_FILES_DIR: /data/files
       # Email (K-019): leave unset until a provider account exists; the API then logs instead of sending.
       TAXIOS_SMTP_HOST: ${TAXIOS_SMTP_HOST:-}
       TAXIOS_SMTP_PORT: ${TAXIOS_SMTP_PORT:-587}
@@ -58,9 +59,12 @@ services:
     depends_on:
       taxios-db: { condition: service_healthy }
       taxios-migrate: { condition: service_completed_successfully }
+    volumes:
+      - files:/data/files # uploaded documents (docker volume `taxios_files`)
     networks: [internal, edge]
 
 volumes:
+  files:
   db:
 
 networks:

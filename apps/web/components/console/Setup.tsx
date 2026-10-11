@@ -7,6 +7,7 @@ import { ErrorBox, Spinner, useAction } from "@/components/ui";
 import { circlePolygon, Pt, MAP_COLORS } from "@/components/MapView";
 import { Category, Checklist, Ctx, Zone, can, fromMinor, toMinor } from "./ctx";
 import Profile from "./Profile";
+import BusinessDocuments from "./BusinessDocuments";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false, loading: () => <div className="map" /> });
 
@@ -24,7 +25,7 @@ const FARE_FIELDS: [keyof Fare, string, "money" | "int" | "pct"][] = [
 ];
 
 const STEP_TEXT: Record<string, string> = {
-  profile: "Business details", zone: "Draw a service zone", category: "Add a vehicle category", fare: "Publish a fare rule",
+  profile: "Business details", documents: "Upload the business registration certificate", zone: "Draw a service zone", category: "Add a vehicle category", fare: "Publish a fare rule",
   vehicle: "Add a vehicle", driver: "Add a driver", staff: "Invite a dispatcher", verification: "Taxios verification",
 };
 const FIELD_TEXT: Record<string, string> = { legalName: "legal name", registrationNo: "registration number", contactEmail: "contact email", contactPhone: "contact phone" };
@@ -78,6 +79,7 @@ export default function Setup({ ctx }: { ctx: Ctx }) {
         </div>
       )}
       <Profile ctx={ctx} onChange={onProfile} />
+      {(!ctx.tenant.verifiedAt || ctx.role === "owner" || ctx.role === "admin") && <BusinessDocuments ctx={ctx} onChange={onProfile} />}
       <ZoneCard base={base} zones={zones} editable={editable} onChange={onChange} />
       <CategoryCard base={base} cats={cats} editable={editable} onChange={onChange} />
       <FareCard base={base} zones={zones} cats={cats} fares={fares} editable={editable} onChange={onChange} />

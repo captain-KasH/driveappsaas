@@ -87,6 +87,50 @@ func (s *Service) MemberRoute(allow func(Member) bool, write bool, h func(*http.
 	})
 }
 
+// RawHandler writes its own response (file bytes); used by MemberRouteRaw / PlatformRouteRaw.
+type RawHandler func(http.ResponseWriter, *http.Request, pgx.Tx, Member) error
+
+// MemberRouteRaw is MemberRoute for handlers that stream the response themselves (read-only).
+func (s *Service) MemberRouteRaw(allow func(Member) bool, h RawHandler) httpx.Handler {
+	return identity.RequireAuth(s.Pool, func(w http.ResponseWriter, r *http.Request) error {
+		p, _ := identity.FromContext(r.Context())
+		tid := strings.ToLower(r.PathValue("tenantID"))
+		if !uuidRe.MatchString(tid) {
+			return httpx.ErrNotFound
+		}
+		return db.InTx(r.Context(), s.Pool, db.Scope{UserID: p.UserID, TenantID: tid}, func(tx pgx.Tx) error {
+			m := Member{Principal: p, TenantID: tid}
+			err := tx.QueryRow(r.Context(), `SELECT m.role, t.status FROM tenant_memberships m
+				JOIN tenants t ON t.id = m.tenant_id WHERE m.tenant_id = $1 AND m.user_id = $2`, tid, p.UserID).Scan(&m.Role, &m.TenantStatus)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return httpx.ErrNotFound
+			}
+			if err != nil {
+				return err
+			}
+			if !allow(m) {
+				return httpx.ErrForbidden
+			}
+			return h(w, r, tx, m)
+		})
+	})
+}
+
+// PlatformRouteRaw is PlatformRoute for handlers that stream the response themselves.
+func (s *Service) PlatformRouteRaw(roles []string, h func(http.ResponseWriter, *http.Request, pgx.Tx, identity.Principal) error) httpx.Handler {
+	return identity.RequireAuth(s.Pool, func(w http.ResponseWriter, r *http.Request) error {
+		p, _ := identity.FromContext(r.Context())
+		allowed := false
+		for _, role := range roles {
+			allowed = allowed || (p.PlatformRole != "" && p.PlatformRole == role)
+		}
+		if !allowed {
+			return httpx.ErrForbidden
+		}
+		return db.InTx(r.Context(), s.Pool, db.Scope{UserID: p.UserID, Platform: true}, func(tx pgx.Tx) error { return h(w, r, tx, p) })
+	})
+}
+
 // PublicTenant resolves an active tenant by slug for unauthenticated brand
 // endpoints. Platform scope is used for this single lookup only.
 func PublicTenant(ctx context.Context, pool *pgxpool.Pool, slug string) (id, name string, err error) {

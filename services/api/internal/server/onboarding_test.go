@@ -70,6 +70,8 @@ func TestSelfServiceOnboarding(t *testing.T) {
 	}
 	f := tenantFixture{ID: tid, OwnerToken: token}
 	configurePricing(t, &f)
+	regFile := dig(uploadFile(t, base+"/files", token, "br.pdf", pdfBytes).Body, "file", "id")
+	must(t, call(t, "POST", base+"/documents", token, map[string]string{"docType": "business_registration", "fileId": regFile}), 201, "registration document")
 	cl = must(t, call(t, "GET", base+"/onboarding", token, nil), 200, "checklist")
 	if cl.Body["canSubmit"] != true || cl.Body["verified"] != false {
 		t.Fatalf("ready business should be submittable and unverified: %v", cl.Body)

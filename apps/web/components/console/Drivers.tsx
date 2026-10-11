@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ago, api } from "@/lib/api";
+import { ago, api, openFile } from "@/lib/api";
+import FilePick from "@/components/FilePick";
 import { Badge, ErrorBox, Spinner, useAction } from "@/components/ui";
 import { CopyLink } from "@/components/CopyLink";
 import { Ctx, Driver, ISSUE_TEXT, Vehicle, can } from "./ctx";
 
-type Doc = { id: string; docType: string; number: string; expiresOn: string | null; status: string; reviewNote: string | null };
+type Doc = { id: string; docType: string; number: string; expiresOn: string | null; status: string; reviewNote: string | null; fileId: string | null };
 const DOC_TYPES = ["driving_licence", "national_id", "vehicle_insurance", "revenue_licence", "police_report"];
 
 export default function Drivers({ ctx }: { ctx: Ctx }) {
@@ -79,6 +80,7 @@ function DriverDetail({ base, id, manage, onChange }: { base: string; id: string
   const [d, setD] = useState<{ driver: Driver; documents: Doc[]; vehicle: Vehicle | null } | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [doc, setDoc] = useState({ docType: "driving_licence", number: "", expiresOn: "" });
+  const [docFile, setDocFile] = useState<{ id: string; fileName: string } | null>(null);
   const act = useAction();
   const load = useCallback(() => api("GET", `${base}/drivers/${id}`).then(setD).catch(act.setError), [base, id, act.setError]);
   useEffect(() => { load(); if (manage) api<{ vehicles: Vehicle[] }>("GET", `${base}/vehicles`).then((r) => setVehicles(r.vehicles)).catch(() => {}); }, [load, base, manage]);
@@ -112,6 +114,7 @@ function DriverDetail({ base, id, manage, onChange }: { base: string; id: string
                 <td data-label="Document"><strong>{x.docType.replaceAll("_", " ")}</strong><div className="muted small mono">{x.number}</div></td>
                 <td data-label="Expires">{x.expiresOn ?? "—"}{x.expiresOn && x.expiresOn < new Date().toISOString().slice(0, 10) && <span className="badge bad"> expired</span>}</td>
                 <td data-label="Status"><Badge value={x.status} /></td>
+                <td data-label="File">{x.fileId ? <button className="linkbtn" onClick={() => openFile(`${base}/files/${x.fileId}`).catch(act.setError)}>View</button> : <span className="muted small">no scan</span>}</td>
                 <td>{manage && x.status !== "approved" && (
                   <div className="row" style={{ gap: 6 }}>
                     <button className="btn small" disabled={act.busy} onClick={() => go(() => api("POST", `${base}/drivers/${id}/documents/${x.id}/review`, { decision: "approved" }))}>Approve</button>
@@ -127,7 +130,8 @@ function DriverDetail({ base, id, manage, onChange }: { base: string; id: string
         </table>
       )}
       {manage && (
-        <form className="fields" onSubmit={(e) => { e.preventDefault(); go(() => api("POST", `${base}/drivers/${id}/documents`, { ...doc, expiresOn: doc.expiresOn || null })); setDoc({ ...doc, number: "", expiresOn: "" }); }}>
+        <form className="fields" onSubmit={(e) => { e.preventDefault(); go(() => api("POST", `${base}/drivers/${id}/documents`, { ...doc, expiresOn: doc.expiresOn || null, fileId: docFile?.id ?? null })); setDoc({ ...doc, number: "", expiresOn: "" }); setDocFile(null); }}>
+          <FilePick key={docFile?.id ?? "empty"} base={base} value={docFile} onChange={setDocFile} label="Scan (optional)" />
           <label className="field">Type<select value={doc.docType} onChange={(e) => setDoc({ ...doc, docType: e.target.value })}>{DOC_TYPES.map((t) => <option key={t} value={t}>{t.replaceAll("_", " ")}</option>)}</select></label>
           <label className="field">Number<input required value={doc.number} onChange={(e) => setDoc({ ...doc, number: e.target.value })} /></label>
           <label className="field">Expires<input type="date" value={doc.expiresOn} onChange={(e) => setDoc({ ...doc, expiresOn: e.target.value })} /></label>

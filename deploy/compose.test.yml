@@ -22,6 +22,7 @@ services:
     working_dir: /src
     environment:
       CGO_ENABLED: "0"
+      TAXIOS_FILES_DIR: /tmp/taxios-files
       TAXIOS_TEST_MIGRATE_URL: postgres://owner:owner@taxios-test-db:5432/taxios_test?sslmode=disable
       TAXIOS_TEST_DATABASE_URL: postgres://taxios_app:test_app@taxios-test-db:5432/taxios_test?sslmode=disable
     volumes:

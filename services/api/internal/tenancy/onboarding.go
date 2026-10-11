@@ -220,15 +220,16 @@ func buildChecklist(r *http.Request, tx pgx.Tx, tenantID string) (checklist, err
 	var c checklist
 	var legal, reg, cemail, cphone *string
 	var verifiedAt *time.Time
-	var zones, cats, fares, vehicles, drivers, staff int
+	var zones, cats, fares, vehicles, drivers, staff, docs int
 	err := tx.QueryRow(r.Context(), `SELECT t.status, t.legal_name, t.registration_no, t.contact_email, t.contact_phone, t.verified_at,
+		(SELECT count(*) FROM tenant_documents WHERE tenant_id=t.id AND doc_type='business_registration'),
 		(SELECT count(*) FROM service_zones WHERE tenant_id=t.id AND active),
 		(SELECT count(*) FROM vehicle_categories WHERE tenant_id=t.id AND active),
 		(SELECT count(*) FROM fare_rules WHERE tenant_id=t.id),
 		(SELECT count(*) FROM vehicles WHERE tenant_id=t.id),
 		(SELECT count(*) FROM drivers WHERE tenant_id=t.id),
 		(SELECT count(*) FROM tenant_memberships WHERE tenant_id=t.id AND role NOT IN ('owner','driver','passenger'))
-		FROM tenants t WHERE t.id=$1`, tenantID).Scan(&c.Status, &legal, &reg, &cemail, &cphone, &verifiedAt, &zones, &cats, &fares, &vehicles, &drivers, &staff)
+		FROM tenants t WHERE t.id=$1`, tenantID).Scan(&c.Status, &legal, &reg, &cemail, &cphone, &verifiedAt, &docs, &zones, &cats, &fares, &vehicles, &drivers, &staff)
 	if err != nil {
 		return c, err
 	}
@@ -243,6 +244,8 @@ func buildChecklist(r *http.Request, tx pgx.Tx, tenantID string) (checklist, err
 	profile.Done = len(profile.Missing) == 0
 	c.Steps = []checklistStep{
 		profile,
+		// The registration certificate is what platform staff verify; trusted (staff-created) tenants skip it.
+		{Key: "documents", Required: !c.Verified, Done: docs > 0},
 		{Key: "zone", Required: true, Done: zones > 0},
 		{Key: "category", Required: true, Done: cats > 0},
 		{Key: "fare", Required: true, Done: fares > 0},
@@ -372,4 +375,100 @@ func (s *Service) manualVerifyEmail(r *http.Request, tx pgx.Tx, p identity.Princ
 	}
 	err = audit.Record(r.Context(), tx, audit.Event{ActorUserID: p.UserID, Action: "user.email_verified_manually", TargetType: "user", TargetID: userID})
 	return Result{http.StatusOK, map[string]any{"emailVerified": true}}, err
+}
+
+// --- business verification documents (T-122) ---
+
+type TenantDocument struct {
+	ID        string    `json:"id"`
+	DocType   string    `json:"docType"`
+	FileID    string    `json:"fileId"`
+	FileName  string    `json:"fileName"`
+	Note      *string   `json:"note"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+func tenantDocuments(r *http.Request, tx pgx.Tx, tenantID string) ([]TenantDocument, error) {
+	rows, err := tx.Query(r.Context(), `SELECT d.id, d.doc_type, d.file_id, f.file_name, d.note, d.created_at
+		FROM tenant_documents d JOIN files f ON f.id = d.file_id WHERE d.tenant_id=$1 ORDER BY d.created_at DESC`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	list, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (TenantDocument, error) {
+		var d TenantDocument
+		return d, row.Scan(&d.ID, &d.DocType, &d.FileID, &d.FileName, &d.Note, &d.CreatedAt)
+	})
+	if list == nil {
+		list = []TenantDocument{}
+	}
+	return list, err
+}
+
+func (s *Service) listTenantDocuments(r *http.Request, tx pgx.Tx, m Member) (Result, error) {
+	list, err := tenantDocuments(r, tx, m.TenantID)
+	return Result{http.StatusOK, map[string]any{"documents": list}}, err
+}
+
+func (s *Service) addTenantDocument(r *http.Request, tx pgx.Tx, m Member) (Result, error) {
+	var in struct {
+		DocType string `json:"docType"`
+		FileID  string `json:"fileId"`
+		Note    string `json:"note"`
+	}
+	if err := httpx.DecodeJSON(r, &in); err != nil {
+		return Result{}, err
+	}
+	if !uuidRe.MatchString(in.FileID) {
+		return Result{}, httpx.Errorf(http.StatusUnprocessableEntity, "invalid_file", "upload the file first, then attach its id")
+	}
+	var id string
+	err := tx.QueryRow(r.Context(), `INSERT INTO tenant_documents(tenant_id, doc_type, file_id, note, uploaded_by)
+		SELECT $1, $2, f.id, nullif($4,''), $5 FROM files f WHERE f.id=$3 RETURNING id`,
+		m.TenantID, in.DocType, in.FileID, strings.TrimSpace(in.Note), m.UserID).Scan(&id)
+	switch code := pgCode(err); {
+	case errors.Is(err, pgx.ErrNoRows):
+		return Result{}, httpx.Errorf(http.StatusUnprocessableEntity, "invalid_file", "upload the file first, then attach its id")
+	case code == "23514":
+		return Result{}, httpx.Errorf(http.StatusUnprocessableEntity, "invalid_document", "docType must be business_registration, owner_id, tax_registration or other; note ≤ 500 chars")
+	case err != nil:
+		return Result{}, err
+	}
+	err = audit.Record(r.Context(), tx, audit.Event{TenantID: m.TenantID, ActorUserID: m.UserID, Action: "tenant_document.added",
+		TargetType: "tenant_document", TargetID: id, Metadata: map[string]any{"docType": in.DocType}})
+	return Result{http.StatusCreated, map[string]any{"documentId": id}}, err
+}
+
+// platformTenantDetail is what the verification queue shows: profile + documents + recent audit.
+func (s *Service) platformTenantDetail(r *http.Request, tx pgx.Tx, p identity.Principal) (Result, error) {
+	tid := r.PathValue("tenantID")
+	if !uuidRe.MatchString(tid) {
+		return Result{}, httpx.ErrNotFound
+	}
+	t, err := scanTenant(tx.QueryRow(r.Context(), `SELECT `+tenantCols+` FROM tenants WHERE id=$1`, tid))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Result{}, httpx.ErrNotFound
+	}
+	if err != nil {
+		return Result{}, err
+	}
+	docs, err := tenantDocuments(r, tx, tid)
+	if err != nil {
+		return Result{}, err
+	}
+	var owners []map[string]any
+	rows, err := tx.Query(r.Context(), `SELECT u.email, u.full_name, u.email_verified_at IS NOT NULL FROM tenant_memberships m
+		JOIN users u ON u.id = m.user_id WHERE m.tenant_id=$1 AND m.role='owner' ORDER BY m.created_at`, tid)
+	if err != nil {
+		return Result{}, err
+	}
+	owners, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (map[string]any, error) {
+		var email, name string
+		var verified bool
+		err := row.Scan(&email, &name, &verified)
+		return map[string]any{"email": email, "fullName": name, "emailVerified": verified}, err
+	})
+	if owners == nil {
+		owners = []map[string]any{}
+	}
+	return Result{http.StatusOK, map[string]any{"tenant": t, "documents": docs, "owners": owners}}, err
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api, when } from "@/lib/api";
+import { api, openFile, when } from "@/lib/api";
 import { BUSINESS_TYPES, businessTypeLabel } from "@/lib/business";
 import { Badge, ErrorBox, SignOut, Spinner, TopBar, useAction, useMe } from "@/components/ui";
 import { CopyLink } from "@/components/CopyLink";
@@ -145,9 +145,13 @@ function TenantDetail({ t }: { t: Tenant }) {
   );
 }
 
+type Detail = { documents: { id: string; docType: string; fileId: string; fileName: string; note: string | null }[]; owners: { email: string; fullName: string; emailVerified: boolean }[] };
+
 function VerifyCard({ t, onDone }: { t: Tenant; onDone: () => void }) {
   const [note, setNote] = useState("");
+  const [detail, setDetail] = useState<Detail | null>(null);
   const act = useAction();
+  useEffect(() => { api<Detail>("GET", `/v1/platform/tenants/${t.id}`).then(setDetail).catch(act.setError); }, [t.id, act.setError]);
   const decide = (decision: "approve" | "reject") => act.run(async () => {
     await api("POST", `/v1/platform/tenants/${t.id}/verification`, { decision, note });
     onDone();
@@ -156,6 +160,14 @@ function VerifyCard({ t, onDone }: { t: Tenant; onDone: () => void }) {
     <div className="stack" style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
       <div className="row"><strong>{t.name}</strong><span className="muted small">{businessTypeLabel(t.businessType)} · submitted {when(t.submittedAt)}</span></div>
       <TenantDetail t={t} />
+      {detail && (
+        <div className="small stack" style={{ gap: 4 }}>
+          <div><span className="muted">Owner:</span> {detail.owners.map((o) => `${o.fullName} <${o.email}>${o.emailVerified ? "" : " (email unverified)"}`).join(", ") || "—"}</div>
+          <div><span className="muted">Documents:</span> {detail.documents.length === 0 ? <span className="badge bad">none uploaded</span> : detail.documents.map((d) => (
+            <button key={d.id} className="linkbtn" style={{ marginRight: 8 }} onClick={() => openFile(`/v1/platform/files/${d.fileId}`).catch(act.setError)}>{d.docType.replaceAll("_", " ")}: {d.fileName}</button>
+          ))}</div>
+        </div>
+      )}
       <label className="field">Note to the owner (required to reject)<input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. registration number doesn't match the certificate" /></label>
       <ErrorBox error={act.error} />
       <div className="row">

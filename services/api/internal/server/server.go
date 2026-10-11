@@ -9,6 +9,7 @@ import (
 
 	"github.com/captain-KasH/driveappsaas/services/api/internal/booking"
 	"github.com/captain-KasH/driveappsaas/services/api/internal/comms"
+	"github.com/captain-KasH/driveappsaas/services/api/internal/files"
 	"github.com/captain-KasH/driveappsaas/services/api/internal/fleet"
 	"github.com/captain-KasH/driveappsaas/services/api/internal/httpx"
 	"github.com/captain-KasH/driveappsaas/services/api/internal/identity"
@@ -30,6 +31,7 @@ func New(pool *pgxpool.Pool, bookings *booking.Service) http.Handler {
 	ten := &tenancy.Service{Pool: pool}
 	ten.Register(mux)
 	(&fleet.Service{Pool: pool, Tenancy: ten}).Register(mux)
+	(&files.Service{Pool: pool, Tenancy: ten, Store: files.FromEnv()}).Register(mux)
 	bookings.Register(mux)
 	apiNotFound := httpx.Handler(func(http.ResponseWriter, *http.Request) error { return httpx.ErrNotFound })
 	site, hasSite := web.Handler()
