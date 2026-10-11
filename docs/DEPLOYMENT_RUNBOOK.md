@@ -50,8 +50,8 @@ restore the `taxios_db` volume from backup (backups: T-100, **not yet configured
 
 ### Logs and health
 ```
-docker compose -f deploy/compose.yml --env-file deploy/.env logs -f api   # JSON, one line per request
-docker inspect -f '{{.State.Health.Status}}' taxios-api-1
+docker compose -f deploy/compose.yml --env-file deploy/.env logs -f taxios-api   # JSON, one line per request
+docker inspect -f '{{.State.Health.Status}}' taxios-api
 ```
 
 ## Local development

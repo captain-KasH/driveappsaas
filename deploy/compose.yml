@@ -1,6 +1,6 @@
 # Production stack for taxios.packline.lk on the packline server (/data/apps/taxios).
 # Run via deploy/deploy.sh. Secrets come from deploy/.env (never committed; see deploy/.env.example).
-# The API joins packline's nginx network as `taxios-api`; no host ports are published.
+# The API joins packline's nginx network as `taxios-api` (its only alias there); no host ports are published.
 name: taxios
 
 services:
@@ -34,8 +34,11 @@ services:
     networks: [internal]
     restart: "no"
 
-  api:
+  # Service name matters: it becomes a DNS alias on packline's shared network. Never use a
+  # generic name (`api`, `web`, `db`) for anything on `edge` — it hijacks packline's traffic.
+  taxios-api:
     image: taxios-api:latest
+    container_name: taxios-api
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://taxios_app:${APP_DB_PASSWORD}@db:5432/taxios?sslmode=disable
@@ -44,10 +47,7 @@ services:
     depends_on:
       db: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
-    networks:
-      internal: {}
-      edge:
-        aliases: [taxios-api]
+    networks: [internal, edge]
 
 volumes:
   db:

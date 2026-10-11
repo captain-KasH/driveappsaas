@@ -19,14 +19,14 @@ compose() { docker compose -f deploy/compose.yml --env-file deploy/.env "$@"; }
 compose build migrate
 compose up -d db
 compose run --rm migrate
-compose up -d --no-deps --force-recreate api
+compose up -d --no-deps --force-recreate --remove-orphans taxios-api
 
 for i in $(seq 1 30); do
-  status=$(docker inspect -f '{{.State.Health.Status}}' taxios-api-1 2>/dev/null || echo starting)
+  status=$(docker inspect -f '{{.State.Health.Status}}' taxios-api 2>/dev/null || echo starting)
   [ "$status" = healthy ] && break
   sleep 2
 done
-[ "$status" = healthy ] || { echo "api not healthy: $status"; compose logs --tail 50 api; exit 1; }
+[ "$status" = healthy ] || { echo "api not healthy: $status"; compose logs --tail 50 taxios-api; exit 1; }
 
 docker exec packlink-nginx curl -fsS -k --resolve taxios.packline.lk:443:127.0.0.1 https://taxios.packline.lk/healthz \
   && echo && echo "Deploy succeeded: $(git rev-parse --short HEAD)"
