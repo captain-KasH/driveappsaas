@@ -8,6 +8,7 @@ access is **only ever** `ssh appuser@164.68.97.219` — never root, never sudo.
 |---|---|
 | Code checkout | `/data/apps/taxios` (git clone of `captain-KasH/driveappsaas`, `main`) |
 | Test stacks | `deploy/compose.test.yml`: project `taxios-test` when run by `deploy.sh`, `taxios-ci` when run by `make test-remote` (from `/data/apps/taxios-ci`). Running two of the same project concurrently tears each other down — if a deploy's test phase fails with missing containers, check for an overlapping run and re-run `deploy.sh` |
+| Dev stack (device testing) | `deploy/compose.dev.yml`, project `taxios-dev`: `taxios-dev-db`, `taxios-dev-migrate`, `taxios-dev-api` on **127.0.0.1:18080 only** (not public), built from `/data/apps/taxios-ci`. `make dev-remote` (rsync + `deploy/dev.sh up` + `seed`), `make dev-tunnel` from the Mac. Throwaway data; `deploy/dev.sh reset` wipes it |
 | Stack | `deploy/compose.yml`, compose project `taxios`: `taxios-db` (postgis/postgis:16-3.4, volume `taxios_db`), `taxios-migrate` (one-shot), `taxios-api`. **Every name is `taxios-`-prefixed** (D-026): the server also runs packline and its voice AI |
 | Secrets | `/data/apps/taxios/deploy/.env` (chmod 600, generated on first deploy, never printed or committed) |
 | Edge | packline's `packlink-nginx` container. Vhost in the **packline repo** `ops/nginx/nginx.conf` (`taxios.packline.lk` block). The API joins network `packlink_packlink` as `taxios-api:8080`; no host ports published |

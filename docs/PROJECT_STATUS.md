@@ -82,6 +82,14 @@ Operational: 1–18 ✅ via API (UI pending, T-019). Monetization: 1–11 ⬜ (S
 ## Outstanding external dependencies
 Legal review (K-003); payment and SMS sandbox accounts (K-004, K-009); routing/maps provider choice (K-010).
 
+## Mobile apps — device run on the server dev stack (2026-10-12)
+Same journey re-run with the API on the server (`make dev-remote` + `make dev-tunnel`), simulators only on the Mac:
+passenger registered → booked TX (Car, Fort → Galle Face Hotel, est. LKR 337.00) → offer reached the driver in 0.5 s →
+accept → on my way → arrived → start → 5 GPS points / 1,456 m → final fare LKR 270.00 (123.76 distance + 20.57 minimum
+adjustment) → cash confirmed → passenger receipt flipped to "paid in cash" without reload (refresh fix verified).
+Local Mac cleanup: removed the 76 Homebrew packages installed for local PostGIS (12 pre-existing upgrades kept) and `.dev/`;
+free space 135 MB → 15 GB.
+
 ## Mobile apps — device run (2026-10-11, local stack)
 `scripts/dev-local.sh up` (throwaway PostGIS on :5433 + API on :8080) and `scripts/dev-seed.py` (operator `lanka-test`, approved
 driver + car). Passenger app on the iPhone 17 Pro simulator, driver app on an iPhone 17 simulator, both in Expo Go (SDK 57):

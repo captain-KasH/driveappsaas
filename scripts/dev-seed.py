@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seed the LOCAL dev API (scripts/dev-local.sh) with a ready-to-ride operator. Refuses any non-local URL.
+"""Seed a DEV API — the server dev stack (deploy/dev.sh seed, preferred) or scripts/dev-local.sh with a ready-to-ride operator. Refuses any non-local URL.
 
 Creates: platform admin, operator "Lanka Test Cabs" (slug lanka-test) covering all of Sri Lanka, car + tuk
 categories and fares, an approved vehicle, and an approved driver with documents. Test-only credentials below.
@@ -33,10 +33,15 @@ def call(method, path, token=None, body=None, ok=(200, 201, 204)):
 def login(email, pw):
     return call("POST", "/v1/auth/login", body={"email": email, "password": pw, "client": "mobile"})[1]["token"]
 
-# Admin (CLI bootstrap, same as production).
-env = dict(os.environ, TAXIOS_ADMIN_PASSWORD=ADMIN[1],
-           MIGRATE_DATABASE_URL="postgres://taxios_owner:taxios_dev_owner@127.0.0.1:5433/taxios?sslmode=disable")
-subprocess.run([".dev/taxios-api", "create-platform-admin", ADMIN[0], "Dev Admin"], env=env, check=True, capture_output=True)
+# Admin (CLI bootstrap, same as production). SEED_ADMIN_VIA=docker:<container> runs it inside the server dev stack.
+via = os.environ.get("SEED_ADMIN_VIA", "")
+if via.startswith("docker:"):
+    subprocess.run(["docker", "exec", "-e", f"TAXIOS_ADMIN_PASSWORD={ADMIN[1]}", via[7:], "/taxios-api", "create-platform-admin", ADMIN[0], "Dev Admin"],
+                   check=True, capture_output=True)
+else:
+    env = dict(os.environ, TAXIOS_ADMIN_PASSWORD=ADMIN[1],
+               MIGRATE_DATABASE_URL="postgres://taxios_owner:taxios_dev_owner@127.0.0.1:5433/taxios?sslmode=disable")
+    subprocess.run([".dev/taxios-api", "create-platform-admin", ADMIN[0], "Dev Admin"], env=env, check=True, capture_output=True)
 admin = login(*ADMIN)
 
 st, pub = call("GET", f"/v1/public/tenants/{SLUG}", ok=(200, 404))

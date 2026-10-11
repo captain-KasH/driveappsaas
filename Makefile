@@ -7,7 +7,7 @@ DEV_DB := taxios_dev
 # Local-only password for the taxios_app role.
 APP_PW := taxios_app_dev
 
-.PHONY: app-role test test-db dev-db migrate serve vet test-remote
+.PHONY: app-role test test-db dev-db migrate serve vet test-remote dev-remote dev-tunnel
 
 vet:
 	cd $(API) && go vet ./... && test -z "$$(gofmt -l .)"
@@ -42,3 +42,12 @@ REMOTE_CI := /data/apps/taxios-ci
 test-remote:
 	rsync -az --delete --exclude .git --exclude 'deploy/.env' --exclude node_modules --exclude .next --exclude 'apps/web/out' ./ $(SERVER):$(REMOTE_CI)/
 	ssh $(SERVER) 'cd $(REMOTE_CI) && COMPOSE_PROJECT_NAME=taxios-ci TEST_ARGS="$(TEST_ARGS)" SKIP_WEB="$(SKIP_WEB)" deploy/test.sh'
+
+# Server DEV stack for simulator testing: build the current tree on the server, migrate, seed.
+dev-remote:
+	rsync -az --delete --exclude .git --exclude 'deploy/.env' --exclude node_modules --exclude .next --exclude 'apps/web/out' --exclude .dev ./ $(SERVER):$(REMOTE_CI)/
+	ssh $(SERVER) 'cd $(REMOTE_CI) && deploy/dev.sh up && deploy/dev.sh seed'
+
+# Forward localhost:8080 on this Mac to the server dev API (simulators then use http://localhost:8080).
+dev-tunnel:
+	ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -L 8080:127.0.0.1:18080 $(SERVER)

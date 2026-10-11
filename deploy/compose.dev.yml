@@ -1,0 +1,55 @@
+# Server-side DEV stack for device testing (never production data). Project `taxios-dev`.
+# Runs from the rsync'd working tree in /data/apps/taxios-ci, so uncommitted changes can be tested.
+# The API listens on the server's loopback only (127.0.0.1:18080); reach it with `make dev-tunnel`
+# (ssh -L 8080:127.0.0.1:18080) so the simulators use http://localhost:8080.
+name: taxios-dev
+
+services:
+  taxios-dev-db:
+    image: postgis/postgis:16-3.4
+    container_name: taxios-dev-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: taxios_owner
+      POSTGRES_PASSWORD: dev_owner
+      POSTGRES_DB: taxios
+      APP_DB_PASSWORD: dev_app
+    volumes:
+      - db:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taxios_owner -d taxios"]
+      interval: 2s
+      retries: 30
+
+  taxios-dev-migrate:
+    build: { context: .., dockerfile: services/api/Dockerfile }
+    image: taxios-dev-api:latest
+    container_name: taxios-dev-migrate
+    command: ["migrate"]
+    environment:
+      MIGRATE_DATABASE_URL: postgres://taxios_owner:dev_owner@taxios-dev-db:5432/taxios?sslmode=disable
+    depends_on: { taxios-dev-db: { condition: service_healthy } }
+    restart: "no"
+
+  taxios-dev-api:
+    image: taxios-dev-api:latest
+    container_name: taxios-dev-api
+    restart: unless-stopped
+    ports: ["127.0.0.1:18080:8080"]
+    environment:
+      DATABASE_URL: postgres://taxios_app:dev_app@taxios-dev-db:5432/taxios?sslmode=disable
+      MIGRATE_DATABASE_URL: postgres://taxios_owner:dev_owner@taxios-dev-db:5432/taxios?sslmode=disable
+      ADDR: ":8080"
+      TAXIOS_PUBLIC_URL: http://localhost:8080
+      TAXIOS_DEV_TOKENS: "1"
+      TAXIOS_FILES_DIR: /data/files
+    volumes:
+      - files:/data/files
+    depends_on:
+      taxios-dev-db: { condition: service_healthy }
+      taxios-dev-migrate: { condition: service_completed_successfully }
+
+volumes:
+  db:
+  files:
