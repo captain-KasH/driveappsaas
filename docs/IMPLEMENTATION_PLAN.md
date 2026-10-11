@@ -96,7 +96,7 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 ## M9 — White-label websites and branded experiences
 | ID | Task | P | Acceptance | Status |
 |---|---|---|---|---|
-| T-007 | Branding: logo upload, colours, typography choice, contacts, legal links, languages; validated; audited; public `brand` endpoint | P0 | booking page + apps render it | ⬜ |
+| T-007 | Branding: logo (tenant's own image file), colour (+ computed text colour), tagline, support phone/email, website/terms/privacy links; validated; audited; `brand` on the public tenant endpoint + public logo route; booking page themed; console Brand card | P0 | booking page + apps render it | ✅ `TestBranding` (typography/languages → T-128) |
 | T-170 | Branded booking website templates (2–3) + sections, SEO metadata, terms/privacy pages, consented analytics | P0 | | ⬜ |
 | T-171 | Subdomain `{slug}.taxios.lk`-style routing + custom domain with ownership verification (TXT) + TLS automation | P1 | tenant can't claim another's domain | ⬜ |
 | T-172 | Embeddable booking widget | P2 | | ⬜ |

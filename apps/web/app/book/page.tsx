@@ -11,7 +11,8 @@ import FareLines, { Breakdown } from "@/components/FareLines";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false, loading: () => <div className="map" /> });
 
-type Brand = { tenant: { id: string; name: string }; categories: { id: string; name: string; seats: number }[] };
+type Brand = { tenant: { id: string; name: string }; brand: PublicBrand; categories: { id: string; name: string; seats: number }[] };
+type PublicBrand = { name: string; color: string; onColor: string; logoUrl: string | null; tagline: string | null; supportPhone: string | null; supportEmail: string | null; websiteUrl: string | null; termsUrl: string | null; privacyUrl: string | null };
 
 const STATUS_TEXT: Record<string, string> = {
   scheduled: "Scheduled — we'll start finding a driver 15 minutes before pickup.",
@@ -49,10 +50,23 @@ function BookApp() {
   if (brandErr) return <div className="alert error">{brandErr instanceof ApiError && brandErr.status === 404 ? "This operator isn't taking bookings on Taxios right now." : String(brandErr)}</div>;
   if (!brand || member === "unknown") return <Spinner />;
 
+  const b = brand.brand;
   return (
-    <div className="stack">
-      <h1>Book with {brand.tenant.name}</h1>
+    <div className="stack" style={{ ["--brand" as string]: b.color, ["--brand-ink" as string]: b.onColor, ["--accent" as string]: b.color }}>
+      <div className="row">
+        {b.logoUrl && <img src={b.logoUrl} alt="" style={{ height: 44, borderRadius: 8 }} />}
+        <div><h1 style={{ margin: 0 }}>Book with {brand.tenant.name}</h1>{b.tagline && <p className="muted" style={{ margin: 0 }}>{b.tagline}</p>}</div>
+      </div>
       {member === "no" ? <Join slug={slug} brand={brand} onJoined={() => setMember("yes")} /> : <Booking brand={brand} />}
+      {(b.supportPhone || b.supportEmail || b.termsUrl || b.privacyUrl || b.websiteUrl) && (
+        <p className="muted small">
+          {b.supportPhone && <>Call <a href={`tel:${b.supportPhone}`}>{b.supportPhone}</a> · </>}
+          {b.supportEmail && <><a href={`mailto:${b.supportEmail}`}>{b.supportEmail}</a> · </>}
+          {b.websiteUrl && <><a href={b.websiteUrl} rel="noopener">Website</a> · </>}
+          {b.termsUrl && <><a href={b.termsUrl} rel="noopener">Terms</a> · </>}
+          {b.privacyUrl && <a href={b.privacyUrl} rel="noopener">Privacy</a>}
+        </p>
+      )}
     </div>
   );
 }

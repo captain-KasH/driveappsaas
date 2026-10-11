@@ -8,6 +8,7 @@ import { circlePolygon, Pt, MAP_COLORS } from "@/components/MapView";
 import { Category, Checklist, Ctx, Zone, can, fromMinor, toMinor } from "./ctx";
 import Profile from "./Profile";
 import BusinessDocuments from "./BusinessDocuments";
+import Branding from "./Branding";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false, loading: () => <div className="map" /> });
 
@@ -80,6 +81,7 @@ export default function Setup({ ctx }: { ctx: Ctx }) {
       )}
       <Profile ctx={ctx} onChange={onProfile} />
       {(!ctx.tenant.verifiedAt || ctx.role === "owner" || ctx.role === "admin") && <BusinessDocuments ctx={ctx} onChange={onProfile} />}
+      <Branding ctx={ctx} />
       <ZoneCard base={base} zones={zones} editable={editable} onChange={onChange} />
       <CategoryCard base={base} cats={cats} editable={editable} onChange={onChange} />
       <FareCard base={base} zones={zones} cats={cats} fares={fares} editable={editable} onChange={onChange} />

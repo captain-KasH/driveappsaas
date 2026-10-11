@@ -36,7 +36,7 @@ Evidence conventions: test names live in `services/api/internal/server/*_test.go
 | 15 | Cancellation fees, tolls, route/airport/intercity/corporate pricing, promo codes, commissions, surge | ⬜ | | T-141…T-144 |
 | 16 | Passenger mobile app | ⬜ | web booking page exists (`/book/`) | T-150, T-151 |
 | 17 | Driver mobile app | ⬜ | web driver app exists (`/driver/`) | T-150, T-152 |
-| 18 | Branding, app identity, domains, booking widget, templates, publishing | ⬜ | | T-007, T-170…T-174 |
+| 18 | Branding, app identity, domains, booking widget, templates, publishing | 🟡 | runtime branding ✅ (`TestBranding`); app identity/builds, domains, widget, templates ⬜ | T-170…T-174 |
 | 18 | Shared marketplace | ⬜ | | T-085 |
 | 19 | Operator public website | 🟡 | booking page only, unbranded | T-171, T-172 |
 | 20 | Ride payments: cash record | ✅ | `TestMVPJourney` step 14 (D-018) | — |

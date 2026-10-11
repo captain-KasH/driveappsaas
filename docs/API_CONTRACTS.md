@@ -32,6 +32,8 @@ Rate limits: enforced at the edge (see end of file); none in-app yet. Audit colu
 | `POST /v1/tenants/{id}/files` | any member except passenger | tenant, write | multipart field `file` (JPEG/PNG/WebP/PDF by sniffing, ≤ 10 MB) | 201 `{file{id,contentType,sizeBytes,fileName,createdAt}}` | 413 `file_too_large`, 415 `unsupported_file_type`, 400 `invalid_upload`, 422 `empty_file` | ✓ |
 | `GET /v1/tenants/{id}/files/{fileId}` | uploader, the driver it belongs to, `fleet.read` or `tenant.manage` | tenant | — | 200 bytes (`Content-Type`, inline, no-store) | 404 otherwise (incl. other tenants) | |
 | `GET /v1/platform/files/{fileId}` | `super_admin`,`support` | platform | — | 200 bytes | 404 | ✓ `file.viewed_by_platform` |
+| `GET /v1/tenants/{id}/branding` · `PATCH …/branding` | `tenant.read` · `tenant.manage` | tenant | `{color?:#hex, logoFileId?:(image file of this tenant, "" removes), tagline?, supportPhone?, supportEmail?, websiteUrl?, termsUrl?, privacyUrl?}` | 200 `{brand{name,color,onColor,logoUrl,tagline,…,language,currency}, logoFileId}` | 422 `invalid_<field>` | ✓ |
+| `GET /v1/public/tenants/{slug}/logo` | none | platform (single lookup) | — | 200 image bytes (5-min cache) | 404 (no logo / not active) | |
 | `GET /v1/tenants/{id}/documents` · `POST …/documents` | `tenant.read` · `tenant.manage` | tenant | `{docType: business_registration\|owner_id\|tax_registration\|other, fileId, note?}` | 200 `{documents[]}` · 201 `{documentId}` | 422 `invalid_file`/`invalid_document` | ✓ |
 | `GET /v1/platform/tenants/{id}` | `super_admin`,`support` | platform | — | 200 `{tenant, documents[], owners[{email,fullName,emailVerified}]}` | 404 | |
 | `GET /v1/tenants/{id}/onboarding` | `tenant.read` | tenant | — | 200 `{status,verified,canSubmit,steps[{key,done,required,missing?}]}` — computed from rows (profile, zone, category, fare, vehicle, driver, staff, verification, live) | | |
@@ -97,7 +99,7 @@ transaction with the tenant's RLS scope; booking state changes append to `bookin
 ### Passenger app (role `passenger`)
 | Method & path | Request | Success | Errors |
 |---|---|---|---|
-| `GET /v1/public/tenants/{slug}` | — | `{tenant{id,name}, categories[]}` (active tenants only) | 404 |
+| `GET /v1/public/tenants/{slug}` (returns `tenant`, `brand`, `categories`) | — | `{tenant{id,name}, categories[]}` (active tenants only) | 404 |
 | `POST /v1/public/tenants/{slug}/passengers` | `{fullName, email, phone, password}` | 201 `{token, tenantId, customerId}` | 409 `already_registered`/`phone_taken`, 401 existing email + wrong password |
 | `POST /quotes` | `{pickup{lat,lng,address}, dropoff{…}, categoryId, scheduledFor?}` | 201 `{quote}` — `isEstimate: true`, breakdown, fare rule version, 10-min expiry | 422 `outside_service_area`, `category_unavailable`, `invalid_schedule` (20 min–30 days ahead) |
 | `POST /my/bookings` | header `Idempotency-Key` (8–128); `{quoteId, paymentMethod: "cash", note?}` | 201 new · 200 replay of the same key | 422 `idempotency_key_required`, `quote_expired`, `payment_method_unavailable`; 409 `idempotency_key_reused`, `quote_already_used` |

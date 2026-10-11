@@ -20,10 +20,11 @@ var tenantCode = tenancy.PgCode
 
 // publicTenant is the brand bootstrap for passenger apps and booking sites.
 func (s *Service) publicTenant(w http.ResponseWriter, r *http.Request) error {
-	id, name, err := tenancy.PublicTenant(r.Context(), s.Pool, r.PathValue("slug"))
+	id, brand, err := tenancy.PublicBrand(r.Context(), s.Pool, r.PathValue("slug"))
 	if err != nil {
 		return err
 	}
+	name := brand.Name
 	var cats []fleet.Category
 	err = db.InTx(r.Context(), s.Pool, db.Scope{TenantID: id}, func(tx pgx.Tx) error {
 		cats, err = fleet.Categories(r, tx)
@@ -32,7 +33,7 @@ func (s *Service) publicTenant(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return httpx.WriteJSON(w, http.StatusOK, map[string]any{"tenant": map[string]string{"id": id, "name": name}, "categories": cats})
+	return httpx.WriteJSON(w, http.StatusOK, map[string]any{"tenant": map[string]string{"id": id, "name": name}, "brand": brand, "categories": cats})
 }
 
 // registerPassenger creates (or links) an account as a passenger of one operator.

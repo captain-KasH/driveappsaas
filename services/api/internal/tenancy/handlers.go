@@ -30,6 +30,8 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.Handle("GET /v1/tenants/{tenantID}", s.TenantRoute(PermTenantRead, false, s.getTenant))
 	mux.Handle("PATCH /v1/tenants/{tenantID}", s.TenantRoute(PermTenantManage, true, s.updateTenant))
 	mux.Handle("GET /v1/tenants/{tenantID}/onboarding", s.TenantRoute(PermTenantRead, false, s.getChecklist))
+	mux.Handle("GET /v1/tenants/{tenantID}/branding", s.TenantRoute(PermTenantRead, false, s.getBranding))
+	mux.Handle("PATCH /v1/tenants/{tenantID}/branding", s.TenantRoute(PermTenantManage, true, s.updateBranding))
 	mux.Handle("GET /v1/tenants/{tenantID}/documents", s.TenantRoute(PermTenantRead, false, s.listTenantDocuments))
 	mux.Handle("POST /v1/tenants/{tenantID}/documents", s.TenantRoute(PermTenantManage, true, s.addTenantDocument))
 	mux.Handle("GET /v1/platform/tenants/{tenantID}", s.PlatformRoute(staff, s.platformTenantDetail))

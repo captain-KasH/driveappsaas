@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/captain-KasH/driveappsaas/services/api/internal/audit"
+	"github.com/captain-KasH/driveappsaas/services/api/internal/db"
 	"github.com/captain-KasH/driveappsaas/services/api/internal/httpx"
 	"github.com/captain-KasH/driveappsaas/services/api/internal/identity"
 	"github.com/captain-KasH/driveappsaas/services/api/internal/tenancy"
@@ -51,6 +52,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.Handle("POST "+p+"/files", s.Tenancy.MemberRoute(notPassenger, true, s.upload))
 	mux.Handle("GET "+p+"/files/{fileID}", s.Tenancy.MemberRouteRaw(notPassenger, s.download))
 	mux.Handle("GET /v1/platform/files/{fileID}", s.Tenancy.PlatformRouteRaw([]string{"super_admin", "support"}, s.platformDownload))
+	mux.Handle("GET /v1/public/tenants/{slug}/logo", httpx.Handler(s.publicLogo))
 }
 
 // upload accepts one multipart file (field "file"). The type is sniffed from the bytes, never
@@ -183,6 +185,34 @@ func (s *Service) serve(w http.ResponseWriter, r *http.Request, f File, key stri
 	w.Header().Set("Content-Length", strconv.FormatInt(f.SizeBytes, 10))
 	w.Header().Set("Content-Disposition", `inline; filename="`+strings.ReplaceAll(f.FileName, `"`, "")+`"`)
 	w.Header().Set("Cache-Control", "private, no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	http.ServeContent(w, r, f.FileName, f.CreatedAt, rc)
+	return nil
+}
+
+// publicLogo serves the one file a tenant chose as its logo; no auth (it is on the public booking page).
+func (s *Service) publicLogo(w http.ResponseWriter, r *http.Request) error {
+	var f File
+	var key string
+	err := db.InTx(r.Context(), s.Pool, db.Scope{Platform: true}, func(tx pgx.Tx) error {
+		err := tx.QueryRow(r.Context(), `SELECT f.id, f.content_type, f.size_bytes, f.file_name, f.created_at, f.storage_key FROM tenants t JOIN files f ON f.id = t.logo_file_id
+			WHERE t.slug = $1 AND t.status = 'active'`, strings.ToLower(r.PathValue("slug"))).
+			Scan(&f.ID, &f.ContentType, &f.SizeBytes, &f.FileName, &f.CreatedAt, &key)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return httpx.ErrNotFound
+		}
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	rc, err := s.Store.Open(r.Context(), key)
+	if err != nil {
+		return fmt.Errorf("store: %w", err)
+	}
+	defer rc.Close()
+	w.Header().Set("Content-Type", f.ContentType)
+	w.Header().Set("Cache-Control", "public, max-age=300")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	http.ServeContent(w, r, f.FileName, f.CreatedAt, rc)
 	return nil
