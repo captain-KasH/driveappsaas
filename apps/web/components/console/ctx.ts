@@ -1,4 +1,11 @@
-export type Tenant = { id: string; slug: string; name: string; businessType: string; countryCode: string; status: string; createdAt: string };
+export type Tenant = {
+  id: string; slug: string; name: string; businessType: string; countryCode: string; status: string; createdAt: string;
+  legalName: string | null; registrationNo: string | null; taxNo: string | null; contactEmail: string | null; contactPhone: string | null;
+  billingEmail: string | null; address: string | null; timezone: string; currency: string; language: string;
+  statusReason: string | null; submittedAt: string | null; verifiedAt: string | null;
+};
+export type ChecklistStep = { key: string; done: boolean; required: boolean; missing?: string[] };
+export type Checklist = { status: string; verified: boolean; canSubmit: boolean; steps: ChecklistStep[] };
 export type Ctx = { tenantId: string; tenant: Tenant; role: string; reload: () => Promise<void> };
 
 // Mirrors services/api/internal/tenancy/permissions.go for showing/hiding UI only — the API decides.

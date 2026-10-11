@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, money } from "@/lib/api";
 import { ErrorBox, Spinner, useAction } from "@/components/ui";
 import { circlePolygon, Pt, MAP_COLORS } from "@/components/MapView";
-import { Category, Ctx, Zone, can, fromMinor, toMinor } from "./ctx";
+import { Category, Checklist, Ctx, Zone, can, fromMinor, toMinor } from "./ctx";
+import Profile from "./Profile";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false, loading: () => <div className="map" /> });
 
@@ -22,53 +23,64 @@ const FARE_FIELDS: [keyof Fare, string, "money" | "int" | "pct"][] = [
   ["nightSurchargeBps", "Night surcharge %", "pct"], ["taxBps", "Tax %", "pct"],
 ];
 
+const STEP_TEXT: Record<string, string> = {
+  profile: "Business details", zone: "Draw a service zone", category: "Add a vehicle category", fare: "Publish a fare rule",
+  vehicle: "Add a vehicle", driver: "Add a driver", staff: "Invite a dispatcher", verification: "Taxios verification",
+};
+const FIELD_TEXT: Record<string, string> = { legalName: "legal name", registrationNo: "registration number", contactEmail: "contact email", contactPhone: "contact phone" };
+
 export default function Setup({ ctx }: { ctx: Ctx }) {
   const base = `/v1/tenants/${ctx.tenantId}`;
   const editable = can(ctx.role, "pricing.manage");
   const [zones, setZones] = useState<Zone[] | null>(null);
   const [cats, setCats] = useState<Category[] | null>(null);
   const [fares, setFares] = useState<Fare[] | null>(null);
+  const [checklist, setChecklist] = useState<Checklist | null>(null);
   const [loadErr, setLoadErr] = useState<unknown>(null);
 
   const load = useCallback(() => Promise.all([
     api<{ zones: Zone[] }>("GET", `${base}/zones`).then((r) => setZones(r.zones)),
     api<{ categories: Category[] }>("GET", `${base}/vehicle-categories`).then((r) => setCats(r.categories)),
     api<{ fareRules: Fare[] }>("GET", `${base}/fare-rules`).then((r) => setFares(r.fareRules)),
+    api<Checklist>("GET", `${base}/onboarding`).then(setChecklist),
   ]).catch(setLoadErr), [base]);
   useEffect(() => { load(); }, [load]);
 
   const finish = useAction();
-  if (!zones || !cats || !fares) return loadErr ? <ErrorBox error={loadErr} /> : <Spinner />;
+  if (!zones || !cats || !fares || !checklist) return loadErr ? <ErrorBox error={loadErr} /> : <Spinner />;
 
-  const steps = [
-    ["Draw a service zone", zones.length > 0],
-    ["Add a vehicle category", cats.length > 0],
-    ["Publish a fare rule", fares.length > 0],
-  ] as const;
+  const onChange = async () => { await load(); };
+  const onProfile = async () => { await ctx.reload(); await load(); };
 
   return (
     <div className="stack">
       {ctx.tenant.status === "onboarding" && (
         <div className="card stack">
           <h2>Get ready to take bookings</h2>
+          {ctx.tenant.statusReason && <div className="alert warn">Taxios asked for changes: {ctx.tenant.statusReason}</div>}
           <ol className="stack" style={{ margin: 0, paddingLeft: 20 }}>
-            {steps.map(([label, done]) => <li key={label}>{done ? "✅" : "⬜"} {label}</li>)}
+            {checklist.steps.filter((s) => s.key !== "live").map((s) => (
+              <li key={s.key}>{s.done ? "✅" : "⬜"} {STEP_TEXT[s.key] ?? s.key}{!s.required && <span className="muted small"> (optional)</span>}
+                {s.missing && s.missing.length > 0 && <span className="muted small"> — missing {s.missing.map((m) => FIELD_TEXT[m] ?? m).join(", ")}</span>}
+              </li>
+            ))}
           </ol>
           <ErrorBox error={finish.error} />
           {ctx.role === "owner" && (
             <div>
-              <button className="btn primary" disabled={finish.busy || !steps.every((s) => s[1])}
-                onClick={() => finish.run(async () => { await api("POST", `${base}/onboarding/complete`); await ctx.reload(); })}>
-                Go live
+              <button className="btn primary" disabled={finish.busy || !checklist.canSubmit}
+                onClick={() => finish.run(async () => { await api("POST", `${base}/onboarding/complete`); await onProfile(); })}>
+                {checklist.verified ? "Go live" : "Submit for review"}
               </button>
-              <span className="muted small"> Passengers can book once you're live.</span>
+              <span className="muted small"> {checklist.verified ? "Passengers can book once you're live." : "Taxios checks your business details, then your booking page goes public."}</span>
             </div>
           )}
         </div>
       )}
-      <ZoneCard base={base} zones={zones} editable={editable} onChange={load} />
-      <CategoryCard base={base} cats={cats} editable={editable} onChange={load} />
-      <FareCard base={base} zones={zones} cats={cats} fares={fares} editable={editable} onChange={load} />
+      <Profile ctx={ctx} onChange={onProfile} />
+      <ZoneCard base={base} zones={zones} editable={editable} onChange={onChange} />
+      <CategoryCard base={base} cats={cats} editable={editable} onChange={onChange} />
+      <FareCard base={base} zones={zones} cats={cats} fares={fares} editable={editable} onChange={onChange} />
     </div>
   );
 }

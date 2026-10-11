@@ -59,6 +59,11 @@ function Console() {
           This business isn't live yet. <button className="linkbtn" onClick={() => setTab("setup")}>Finish setup</button> to start taking bookings.
         </div>
       )}
+      {ctx.tenant.status === "pending_verification" && (
+        <div className="alert warn" style={{ marginBottom: 12 }}>
+          Taxios is reviewing your business details. You can keep setting up; the booking page goes public once approved.
+        </div>
+      )}
       {(ctx.tenant.status === "suspended" || ctx.tenant.status === "closed") && (
         <div className="alert error" style={{ marginBottom: 12 }}>This business is {ctx.tenant.status}. You can view data but not make changes.</div>
       )}

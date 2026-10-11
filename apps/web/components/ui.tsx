@@ -51,7 +51,7 @@ export function Spinner({ label = "Loading" }: { label?: string }) {
 
 const tone: Record<string, string> = {
   active: "ok", approved: "ok", completed: "ok", available: "ok", accepted: "ok", paid_cash: "ok",
-  onboarding: "warn", pending: "warn", searching: "warn", scheduled: "warn", busy: "warn", assigned: "warn",
+  onboarding: "warn", pending_verification: "warn", pending: "warn", searching: "warn", scheduled: "warn", busy: "warn", assigned: "warn",
   en_route: "warn", arrived: "warn", in_progress: "warn", driver_assigned: "warn",
   suspended: "bad", closed: "bad", cancelled: "bad", expired: "bad", rejected: "bad", aborted: "bad", offline: "",
 };

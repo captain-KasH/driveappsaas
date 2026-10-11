@@ -178,3 +178,16 @@ func TestPasswordReset(t *testing.T) {
 		t.Fatalf("reset token must be single-use: %d %v", r.Status, r.Body)
 	}
 }
+
+func TestManualEmailVerification(t *testing.T) {
+	email, token, _ := register(t, "Offline Owner")
+	if r := call(t, "POST", "/v1/platform/users/verify-email", token, map[string]string{"email": email}); r.Status != 403 {
+		t.Fatalf("only platform staff may verify manually: %d", r.Status)
+	}
+	admin := superAdminToken(t)
+	if r := call(t, "POST", "/v1/platform/users/verify-email", admin, map[string]string{"email": "nobody-" + email}); errCode(r) != "user_not_found" {
+		t.Fatalf("unknown email: %d %v", r.Status, r.Body)
+	}
+	must(t, call(t, "POST", "/v1/platform/users/verify-email", admin, map[string]string{"email": email}), 200, "manual verify")
+	must(t, call(t, "POST", "/v1/businesses", token, map[string]string{"slug": uniq("manual-"), "name": "Manual Cabs", "businessType": "taxi"}), 201, "create after manual verify")
+}

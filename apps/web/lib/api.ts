@@ -65,4 +65,4 @@ export const km = (m: number | null | undefined) => (m == null ? "—" : `${(m /
 export const mins = (s: number | null | undefined) => (s == null ? "—" : `${Math.round(s / 60)} min`);
 
 export type Membership = { tenantId: string; tenantSlug: string; tenantName: string; tenantStatus: string; role: string };
-export type Me = { user: { id: string; email: string; fullName: string; platformRole: string }; memberships: Membership[] };
+export type Me = { user: { id: string; email: string; fullName: string; platformRole: string; emailVerified: boolean }; memberships: Membership[] };

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, token } from "@/lib/api";
@@ -29,7 +30,8 @@ function Login() {
       <label className="field">Password<input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
       <ErrorBox error={error} />
       <button className="btn primary block" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
-      <p className="muted small">New staff member or driver? Open the invitation link you were sent to set your password.</p>
+      <p className="muted small"><Link href="/forgot/">Forgot your password?</Link></p>
+      <p className="muted small">Starting a transport business? <Link href="/signup/">Create an account</Link>. Staff and drivers join through the invitation link they were sent.</p>
     </form>
   );
 }

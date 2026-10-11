@@ -44,6 +44,13 @@ services:
       DATABASE_URL: postgres://taxios_app:${APP_DB_PASSWORD}@db:5432/taxios?sslmode=disable
       ADDR: ":8080"
       TAXIOS_TRUST_PROXY: "1"
+      TAXIOS_PUBLIC_URL: https://taxios.packline.lk
+      # Email (K-019): leave unset until a provider account exists; the API then logs instead of sending.
+      TAXIOS_SMTP_HOST: ${TAXIOS_SMTP_HOST:-}
+      TAXIOS_SMTP_PORT: ${TAXIOS_SMTP_PORT:-587}
+      TAXIOS_SMTP_USER: ${TAXIOS_SMTP_USER:-}
+      TAXIOS_SMTP_PASSWORD: ${TAXIOS_SMTP_PASSWORD:-}
+      TAXIOS_EMAIL_FROM: ${TAXIOS_EMAIL_FROM:-Taxios <no-reply@packline.lk>}
     depends_on:
       db: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }

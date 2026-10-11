@@ -15,7 +15,8 @@ export default function Landing() {
             passenger booking, dispatch, driver checks, server-calculated fares and trip records.
           </p>
           <div className="row">
-            <Link className="btn primary" href="/login/">Sign in to your business</Link>
+            <Link className="btn primary" href="/signup/">Start your business</Link>
+            <Link className="btn" href="/login/">Sign in</Link>
             <a className="btn" href="mailto:hello@packline.lk?subject=Taxios%20for%20my%20business">Talk to us</a>
           </div>
         </section>

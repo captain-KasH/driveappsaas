@@ -351,3 +351,25 @@ func (s *Service) verifyTenant(r *http.Request, tx pgx.Tx, p identity.Principal)
 		TargetType: "tenant", TargetID: tid, Reason: note, Metadata: map[string]any{"from": from, "to": t.Status}})
 	return Result{http.StatusOK, map[string]any{"tenant": t}}, err
 }
+
+// manualVerifyEmail lets platform staff confirm an owner's address while no email provider is
+// connected (K-019). Audited as a platform-level event with the staff member as actor.
+func (s *Service) manualVerifyEmail(r *http.Request, tx pgx.Tx, p identity.Principal) (Result, error) {
+	var in struct {
+		Email string `json:"email"`
+	}
+	if err := httpx.DecodeJSON(r, &in); err != nil {
+		return Result{}, err
+	}
+	var userID string
+	err := tx.QueryRow(r.Context(), `UPDATE users SET email_verified_at = coalesce(email_verified_at, now()), updated_at = now()
+		WHERE email = $1 RETURNING id`, strings.TrimSpace(in.Email)).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Result{}, httpx.Errorf(http.StatusNotFound, "user_not_found", "no account with that email")
+	}
+	if err != nil {
+		return Result{}, err
+	}
+	err = audit.Record(r.Context(), tx, audit.Event{ActorUserID: p.UserID, Action: "user.email_verified_manually", TargetType: "user", TargetID: userID})
+	return Result{http.StatusOK, map[string]any{"emailVerified": true}}, err
+}

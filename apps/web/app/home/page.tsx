@@ -26,8 +26,17 @@ export default function Home() {
                 <Link className="btn primary right" href="/admin/">Open admin</Link>
               </div>
             )}
+            {!me.user.emailVerified && (
+              <div className="alert warn">Your email isn't verified yet. <Link href="/start/">Resend the link</Link> if it hasn't arrived.</div>
+            )}
             {me.memberships.length === 0 && !me.user.platformRole && (
-              <div className="card empty">You're not part of any business yet. Ask an owner to invite you.</div>
+              <div className="card row">
+                <div>
+                  <h3>Start a transport business</h3>
+                  <p className="muted small">Set up your booking page, drivers and fares. Staff and drivers join through an invitation from their owner.</p>
+                </div>
+                <Link className="btn primary right" href="/start/">Create business</Link>
+              </div>
             )}
             {me.memberships.map((m) => (
               <div className="card row" key={m.tenantId}>

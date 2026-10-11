@@ -22,6 +22,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.Handle("POST /v1/platform/tenants/{tenantID}/status", s.PlatformRoute(super, s.setTenantStatus))
 	mux.Handle("POST /v1/platform/tenants/{tenantID}/verification", s.PlatformRoute(super, s.verifyTenant))
 	mux.Handle("POST /v1/businesses", identity.RequireAuth(s.Pool, s.createBusiness))
+	mux.Handle("POST /v1/platform/users/verify-email", s.PlatformRoute(super, s.manualVerifyEmail))
 
 	mux.Handle("POST /v1/auth/accept-invite", httpx.Handler(s.acceptInvite))
 	mux.Handle("GET /v1/me", identity.RequireAuth(s.Pool, s.me))
