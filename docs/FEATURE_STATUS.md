@@ -1,6 +1,7 @@
 # Feature status (per master prompt section)
 
-_Updated 2026-10-11. ✅ verified (test/evidence named) · 🟡 partial · ⬜ missing · ⛔ blocked externally.
+_Updated 2026-10-12. Parity targets: `UBER_APPS_SPEC.md` §4 (apps), `PLATFORM_PARITY.md` §C5 (platform/operator), `SRI_LANKA_MARKET.md` §8 (LK)._
+_ ✅ verified (test/evidence named) · 🟡 partial · ⬜ missing · ⛔ blocked externally.
 Evidence conventions: test names live in `services/api/internal/server/*_test.go`; "live" = checked on https://taxios.packline.lk._
 
 | § | Capability | Status | Evidence / gap | Next task |
@@ -31,11 +32,12 @@ Evidence conventions: test names live in `services/api/internal/server/*_test.go
 | 13 | Recurring, multi-stop, passenger count/luggage, accessibility, flight info, corporate ref, no-show rules, disputed state | ⬜ | | T-140, T-141, T-145 |
 | 13 | Explicit state machine, duplicate/retry/race handling | ✅ | `TestCompletedTripIsFinal`, `TestBookingIdempotency`, `TestExclusiveAssignmentConcurrency` | — |
 | 14 | Dispatch: queue, live map, manual + auto assign, scheduled, accept/reject, timeout/retry, cancel | ✅ | tests above; live `/console/` Dispatch tab | — |
-| 14 | Realtime (no polling), alerts for delayed/unassigned, dispatcher notes, filters, search, reassignment | ⬜ | 5 s polling | T-031, T-146 |
+| 14 | Realtime (no polling), live map, alerts for delayed/unassigned, dispatcher notes, filters, search, reassignment | ⬜ | 4–5 s polling everywhere | T-030, T-031, T-146 |
+| 14 | Per-tenant dispatch/fare/PIN/cancel knobs (settings layer) | ⬜ | all Go constants (`booking.go`) | T-129 |
 | 15 | Base/distance/time/minimum/waiting/night/booking fee/scheduled/tax/rounding, versioned rules, estimate vs final, breakdown | ✅ | `fare_test.go`, D-016 | — |
 | 15 | Cancellation fees, tolls, route/airport/intercity/corporate pricing, promo codes, commissions, surge | ⬜ | | T-141…T-144 |
-| 16 | Passenger mobile app | 🟡 | `apps/mobile` passenger variant: join, book, track, cancel, receipt, rating (runs in Expo Go vs prod); no map/push/OTP/deletion yet | T-151, T-153 |
-| 17 | Driver mobile app | 🟡 | `apps/mobile` driver variant: online/offline, GPS, offers, trip, cash, document photos; no background GPS/earnings/push | T-152b, T-132, T-153 |
+| 16 | Passenger mobile app | 🟡 | `apps/mobile` passenger variant: join, book, track, cancel, receipt, rating — journey verified on simulators vs the server dev stack. **Form-first; Uber parity needs the map-first rewrite** (no map, OTP, push, saved places, safety, PIN, wait timer) | T-155, T-157, T-153 |
+| 17 | Driver mobile app | 🟡 | `apps/mobile` driver variant: online/offline, foreground GPS + heartbeat, offers, trip, cash, document photos. **Needs map-first rewrite**: earnings-first offer card, wait/PIN/no-show, swipe, rate rider, earnings + owed balance, background GPS, push | T-156, T-158, T-132, T-153 |
 | 18 | Branding, app identity, domains, booking widget, templates, publishing | 🟡 | runtime branding ✅ (`TestBranding`); app identity/builds, domains, widget, templates ⬜ | T-170…T-174 |
 | 18 | Shared marketplace | ⬜ | | T-085 |
 | 19 | Operator public website | 🟡 | booking page only, unbranded | T-171, T-172 |

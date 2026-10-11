@@ -4,10 +4,13 @@ Status: ✅ done (evidence in PROJECT_STATUS/FEATURE_STATUS) · 🟡 partial · 
 Priority: P0 = needed for the first commercial launch · P1 = v1.1 · P2 = later.
 Old task IDs (T-000…T-100) are kept where the work exists; new work gets IDs per milestone (T-1xx = M1, …).
 
-## Build order (D-025)
-M1 → M4 → M7 → M9 → M10 → M8 → M11 → M14 (launch) → M12 → M13, with M5/M6 gaps picked up when a
-milestone needs them. Reason: the owner's first goal is the SaaS owner → tenant admin → white-label app
-chain end to end; billing before online payments because v1 invoicing is manual (D-023).
+## Build order (D-025, re-sequenced 2026-10-12 for Uber parity — D-027)
+M1 → M4 → **M4b settings layer (T-129)** → **M6 realtime + geo (T-030, T-031, T-013b)** → **M11 push/SMS (T-190, T-153, T-041)** →
+**M7 app rewrite (T-155…T-159)** → **M5 ledger (T-132/T-144)** → M9 → M10 → M8 → M14 (launch) → M12 → M13. Reason: the owner's
+first goal is the SaaS owner → tenant admin → white-label app chain end to end, and the apps must match Uber's flows
+(`UBER_APPS_SPEC.md` §4) which need settings, realtime, maps and push underneath; billing before online payments because v1
+invoicing is manual (D-023). Parity gap analysis: `PLATFORM_PARITY.md` §C5 (platform/operator), `UBER_APPS_SPEC.md` §4 (apps),
+`SRI_LANKA_MARKET.md` §8 (local decisions D-LK-1…14).
 
 ## M1 — Repository stabilization
 | ID | Task | P | Acceptance | Status |
@@ -49,7 +52,10 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 | T-125 | Platform feature flags (global + per-tenant overrides) read through the entitlement hook | P1 | | ⬜ |
 | T-126 | Operator dashboard additions: customers tab (search, aggregates) ✅, CSV exports of customers + bookings (`reports.read`) ✅, settings/profile ✅ (T-123); branding tab (T-007) ⬜, subscription tab (M10) ⬜ | P0 | | 🟡 `TestCustomersAndExports` |
 | T-127 | CSV import for drivers and vehicles with validation report + duplicate handling | P1 | | ⬜ |
-| T-128 | i18n foundation: UI strings externalised; en/si/ta switch; per-tenant default language; phone validation per country | P1 | | ⬜ |
+| T-128 | i18n foundation: UI strings externalised; en/si/ta switch (Noto Sans Sinhala/Tamil bundled); per-tenant default language (by district); phone validation per country; `Rs 1,250` formatting | **P0** | both apps + SMS templates in si/ta | ⬜ |
+| T-129 | **Tenant settings layer** (D-028): `tenant_settings` + validation + audit + one `settings.For(tenant)` hook; replace `booking.go` constants (offer TTLs, radius, search timeout, lead time, quote TTL, location staleness) + new knobs (dispatch policy, PIN policy + night window, cancel free window/fee, no-show wait/fee, wait grace, upfront deviation %, commission, languages, contact policy, SOS numbers, nav default); public subset on `/v1/public/tenants/{slug}`; console Settings page (`PLATFORM_PARITY.md` §C3) | **P0** | test: two tenants with different offer TTLs dispatch differently; no business constant left in Go | ⬜ |
+| T-020 | Audited support access ("login as"): reason code, TTL ≤ 60 min, dual attribution, persistent banner, every access in `support_sessions` + audit | P0 | | ⬜ |
+| T-188 | Announcements + platform/tenant support inbox (tickets, SLA timers) | P1 | | ⬜ |
 
 ## M5 — Fleet and customer operations
 | ID | Task | P | Acceptance | Status |
@@ -57,7 +63,10 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 | T-016 | Drivers, vehicles, documents, approval | P0 | | ✅ |
 | T-130 | Driver document scans attached via `fileId` (uploader/driver/fleet staff only; cross-tenant and other-driver reads → 404); expiry alerts job ⬜ | P0 | cross-tenant read → 404 | 🟡 uploads ✅ `TestFileUploadsAndAccess`; alerts ⬜ |
 | T-131 | Vehicle lifecycle: insurance/registration docs, inspection + service dates, maintenance state, capacity, accessibility | P1 | | ⬜ |
-| T-132 | Driver earnings + commission records per trip (configurable % / flat), driver statement | P0 | ledger lines append-only | ⬜ |
+| T-132 | **Commission-credit ledger** (D-029): `commission_rules` (% / flat daily / tiered; category/zone/driver scope), append-only `ledger_entries`, balance = SUM, negative floor stops offers, cash-in (staff, bank import by reference), daily/weekly statements, driver-app earnings tab + "owed to operator" | P0 | ledger lines append-only; mutation test on the floor | ⬜ |
+| T-135 | Driver standing engine: rolling-500 rating, rolling-100 acceptance/cancellation (nightly), floors → dispatcher alerts, warn → suspend(until) → deactivate with reason + appeal; `driver_standing_events` feeds `driver_compliance`; doc-expiry reminders 30/7/1 d (with T-130) | P0 | never auto-deactivates | ⬜ |
+| T-136 | Rider ratings by drivers + mutual-1★ exclusion in dispatch (knob) | P0 | | ⬜ |
+| T-137 | Driver register export for NTC/WP audits (NIC, licence class, CR, revenue licence, insurance, WP permit) + vehicle docs (merges into T-131) | P1 | | ⬜ |
 | T-133 | Passenger saved places, preferences, consent, data export + deletion request | P1 | | ⬜ |
 | T-134 | Shifts / working hours | P2 | | ⬜ |
 
@@ -65,15 +74,20 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 | ID | Task | P | Acceptance | Status |
 |---|---|---|---|---|
 | T-012…T-017 | Zones, categories, fares, quotes, bookings, dispatch, trips, cash, receipts, reports | P0 | | ✅ |
-| T-031 | Authenticated WebSocket (tenant-scoped) for dispatch board, driver offers, passenger tracking | P0 | | ⬜ |
-| T-013b | Routing/ETA provider adapter (choice recorded in INTEGRATIONS) with heuristic fallback | P1 | | ⬜ |
+| T-030 | Transactional outbox (`outbox_events`, same tx) + in-binary worker, stable IDs, tenant context, consumer dedupe | P0 | retried event delivered once | ⬜ |
+| T-031 | Realtime hub: authenticated WebSocket per tenant, per-booking seq numbers, resend from last-seen seq, 4 s heartbeat / 7 s reconnect, latest-state-only; Redis fan-out when multi-instance; polling stays as fallback; offer **delivered-ack** so unseen offers aren't declines | P0 | reconnect test replays missed events | ⬜ |
+| T-013b | **Geo adapter** (D-031): tenant POI table with si/ta/en aliases + trigram search; self-hosted Nominatim/Photon + OSRM/Valhalla on the LK extract (search, route, matrix, map-match for fare distance); Google Places/Routes behind a per-tenant paid flag; learned per-zone/hour speed table | **P0** | quote distance = routed; ETA from matrix | ⬜ |
+| T-148 | Quote **all categories in one call** with pickup ETA each; upfront fare lock + deviation rule (knob) + re-price on destination/stop change with both parties shown the delta | P0 | `TestUpfrontFare` | ⬜ |
+| T-149 | Arrived/wait/PIN/no-show server rules: geofence auto-`arrived` (knob) with manual fallback, wait timer from server `arrived` time, PIN (off/night/always) checked before `in_progress`, `rider_no_show` only after `arrived` + threshold, fees per T-141 | P0 | state tests | ⬜ |
 | T-140 | Booking extras: passenger count, luggage, multi-stop, flight number, corporate reference, accessibility | P1 | | ⬜ |
-| T-141 | Cancellation / no-show fees as fare-rule fields | P1 | | ⬜ |
+| T-141 | Cancellation / no-show / waiting fees as fare-rule fields (free window, flat fee, waiver when driver ETA slips; cash → owed balance on next trip; wait grace + per-minute) + night band 22:00–05:00 + peak multiplier + holiday calendar + airport/zone flat (meter-shaped rules, D-LK-2) | **P0** (night/flat/wait), P1 (fees) | | ⬜ |
 | T-142 | Promo codes + discounts (validated server-side, usage limits) | P1 | | ⬜ |
 | T-143 | Surge / demand pricing (opt-in per tenant, capped, audited) | P2 | | ⬜ |
 | T-144 | Commission configuration (feeds T-132) | P0 | | ⬜ |
 | T-145 | Recurring bookings | P2 | | ⬜ |
-| T-146 | Dispatch alerts (unassigned > N min, late pickup), dispatcher notes, filters, search, reassignment | P1 | | ⬜ |
+| T-146 | Dispatch board (Fleet-Hub grade): live map of drivers/trips over T-031, alerts (unassigned > N min, late, stationary, route deviation), reassign with reason, bulk actions, dispatcher notes, filters/search; phone booking with SMS tracking link on the tenant's domain | **P0** | | ⬜ |
+| T-147 | Zone kinds (service / stand / airport / surcharge), stand-FIFO queue dispatch (tuk societies, BIA), GeoJSON import, scheduled dispatch profiles (day/night/event) | P1 | | ⬜ |
+| T-150b | Hire products: hourly/day packages (hours + km caps, extra-km), intercity one-way/return per-km, corporate accounts with monthly statement | P1 | | ⬜ |
 
 ## M7 — Passenger and driver applications (Expo, D-024)
 | ID | Task | P | Acceptance | Status |
@@ -81,8 +95,13 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 | T-150 | `apps/mobile`: ONE Expo SDK 57 codebase; `APP_VARIANT=passenger\|driver` picks the app, optional `TAXIOS_TENANT` pins a per-operator build (D-022); runtime brand from `/v1/public/tenants/{slug}`; session in the keychain | P0 | both variants run in Expo Go on the iOS simulator against prod | 🟡 runs in Expo Go (2026-10-11); EAS build profiles ⬜ (T-174) |
 | T-151 | Passenger app: operator code (or pinned), join/sign in (mobile session), address search + current location, vehicle, now/+30m/+1h/+2h/tomorrow, quote, idempotent booking, live status, driver card, cancel, history, receipt, rating, support/legal links. Missing: map + live driver pin, OTP ⛔, push, account deletion, date picker | P0 | journey steps on device | ✅ journey run on iOS simulators 2026-10-11 (PROJECT_STATUS "device run"); Android pending |
 | T-152 | Driver app: sign in, business picker, compliance status, online/offline, foreground GPS (10 s), offer countdown + accept/decline, trip steps, Google Maps hand-off, end-early reasons, cash confirmation, documents with camera/photo upload. Missing: background location (T-152b, needs dev build), earnings (T-132), push | P0 | | ✅ same run (offer → trip → GPS final fare → cash); background GPS ⬜ T-152b |
-| T-153 | Push notifications (Expo push → FCM/APNs) through the notification abstraction (T-190) | P0 | | ⬜ |
-| T-154 | Mobile tests: permissions, deep links, session expiry, backgrounding, GPS failure, offline | P1 | | ⬜ |
+| T-153 | Push notifications (Expo push → FCM/APNs) through T-190: offers (high priority + sound), assigned/arriving/arrived/started/receipt, doc expiry, settlement; Live Activity / ongoing notification v1.1 | P0 | | ⬜ |
+| T-154 | Mobile tests: permissions, deep links, session expiry, backgrounding, GPS failure, offline replay; device matrix Samsung A05 / Honor X7b / Redmi 9A (D-LK-10) | P1 | | ⬜ |
+| T-155 | **Passenger app rewrite, map-first** (`UBER_APPS_SPEC.md` §1, §4.1): map + bottom sheet shell (snap points), "Where to?" home with saved/recent places + nearby vehicles, two-field search with POIs + set-on-map pin, product rows with upfront price + ETA (T-148), payment row (cash explicit), searching sheet (free cancel, call operator, no-driver), en-route with live driver marker + route + ETA + call/share/safety, arrived banner + PIN + wait timer, on-trip, end screen ("pay driver Rs X cash", rating chips, SMS receipt), Activity, Reserve date picker, account/settings (si/ta/en), safety toolkit (119/1990 + dispatcher alert), public share page | **P0** | journey on both simulators via `make dev-tunnel` + screenshots in PROJECT_STATUS | ⬜ |
+| T-156 | **Driver app rewrite, map-first** (§2, §4.2): map home + earnings pill + status strip, documents screen with expiring state, earnings-first offer card (fare, pickup ETA, trip length, destination, rider rating, countdown ring, sound/vibration, delivered-ack), in-app map + nav chooser, wait timer + PIN entry + no-show cancel, swipe to start/complete, cash screen with commission line, rate rider, earnings tab (T-132), SOS, account | **P0** | same | ⬜ |
+| T-157 | Phone + OTP sign-up/sign-in for passengers (D-030) once T-041 lands; name-only profile; terms consent | P0 | ⛔ SMS creds | ⬜ |
+| T-158 | EAS **dev build** (not Expo Go): background location (replaces T-152b), batching + replay, mock-location flag, Live Activity, push tokens; minSdk 28, APK ≤ 30 MB, cold start ≤ 3 s | P0 | | ⬜ |
+| T-159 | Offline tolerance: cached recents/saved places + last booking state; idempotent driver actions queued and replayed in order | P0 | airplane-mode test | ⬜ |
 
 ## M8 — Payment operations
 | ID | Task | P | Acceptance | Status |
@@ -121,7 +140,9 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 |---|---|---|---|---|
 | T-190 | Notification abstraction: channels, templates (branded, per language), outbox-driven, deduped, delivery status, metering | P0 | retried event → one message | ⬜ |
 | T-040 | Email provider adapter (⛔ account) | P0 | | ⬜ |
-| T-041 | SMS/OTP provider adapter (⛔ account) | P0 | | ⬜ |
+| T-041 | SMS/OTP provider adapter: local gateway (Notify.lk / Text.lk / Dialog eSMS) with per-tenant registered sender ID + platform fallback, si/ta ≤ 70-char segments, promo blackout 20:00–08:00, Twilio cross-border fallback (⛔ account) | P0 | | ⬜ |
+| T-194 | PDPA readiness (by 2027-01-01): DPO fields, consent copy si/ta, data export/erasure request queue with deadlines, breach runbook, DPIA on location data, retention knobs | P1 | | ⬜ |
+| T-226 | Fraud flags: rule-based (speed > 150 km/h between pings, altitude jumps, mock location, GPS/routed ratio > 1.5, duplicate accounts, cancel abuse) → human review in consoles; never auto-ban | P1 | | ⬜ |
 | T-191 | API keys with scopes, rotation, rate limits | P1 | | ⬜ |
 | T-192 | Webhooks: registration, signed delivery, retries, dead-letter, logs, replay | P1 | | ⬜ |
 | T-193 | Tenant integration settings + provider health | P1 | | ⬜ |
@@ -151,4 +172,4 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 | T-225 | Launch docs: minimum infra, scaling triggers, incident response, DR | P0 | | ⬜ |
 
 ## Next actionable task
-**T-103 + T-104** (small, unblock everything), then **T-120 → T-121 → T-122 → T-123 → T-124** (self-service onboarding + platform console), each with tests, committed and deployed separately.
+**T-129 settings layer** (unblocks every per-operator knob), then **T-030 → T-031** (outbox + realtime), **T-013b** (geo adapter + POIs), **T-148/T-149** (upfront fare, arrived/PIN/no-show rules), **T-190 + T-153** (push), then the **T-155/T-156 map-first app rewrite** tested on both simulators against the server dev stack, then **T-132/T-135** (ledger, standing). Each with tests, committed and deployed separately.

@@ -18,7 +18,9 @@ feature done without an executed test or a live check named in the doc (prompt �
   `internal/server` wires them. No circular imports. Lock order: booking → offer → driver.
 - PostgreSQL 16 + PostGIS with row-level security. Web (`apps/web`, Next.js) and mobile
   (`apps/mobile`, React Native) clients are next (T-019); Redis not used yet.
-- Details: `docs/ARCHITECTURE.md`, `docs/DATABASE_DESIGN.md`, `docs/API_CONTRACTS.md`.
+- Details: `docs/ARCHITECTURE.md` (target design + diagram), `docs/DATABASE_DESIGN.md`, `docs/API_CONTRACTS.md`.
+- Product bar = Uber parity with operator branding (D-027): build apps from `docs/UBER_APPS_SPEC.md`, consoles from
+  `docs/PLATFORM_PARITY.md`, LK rules from `docs/SRI_LANKA_MARKET.md` §8. No new business constants in Go (D-028).
 
 ## Commands
 ```

@@ -82,6 +82,19 @@ Operational: 1–18 ✅ via API (UI pending, T-019). Monetization: 1–11 ⬜ (S
 ## Outstanding external dependencies
 Legal review (K-003); payment and SMS sandbox accounts (K-004, K-009); routing/maps provider choice (K-010).
 
+## Uber-parity research + re-plan (2026-10-12)
+Owner asked for the product to match Uber UI- and functionality-wise, across apps and multi-tenant management. Four
+research docs (all sources dated 2026-10-12, unverified items marked): `UBER_PARITY.md` (patterns, 32 sources),
+`UBER_APPS_SPEC.md` (screen-level rider + driver spec with a delta table against our Expo apps, 65 sources),
+`PLATFORM_PARITY.md` (Uber Fleet Hub / Central + white-label vendors → super-admin and operator console spec, ~45
+per-tenant knobs, data-model additions, priorities), `SRI_LANKA_MARKET.md` (PickMe/Uber LK, payments, SMS gateways,
+maps/OSM, PDPA 2027, NTC Act 2025, tuk tariff, low-end Android targets; decisions D-LK-1…14).
+Outcome: `ARCHITECTURE.md` rewritten with the target design + diagram (`docs/diagrams/architecture-target.svg`),
+decisions D-027…D-031, roadmap re-sequenced (settings layer → outbox/realtime → geo → push → map-first app rewrite →
+commission-credit ledger), new tasks T-129, T-135–137, T-148/149, T-147, T-150b, T-155–159, T-188, T-194, T-226.
+Headline gaps: both apps are form-first with no map; every dispatch rule is a Go constant; no realtime, push, SMS,
+ledger, plans/entitlements, support access, or app-build pipeline yet.
+
 ## Mobile apps — device run on the server dev stack (2026-10-12)
 Same journey re-run with the API on the server (`make dev-remote` + `make dev-tunnel`), simulators only on the Mac:
 passenger registered → booked TX (Car, Fort → Galle Face Hotel, est. LKR 337.00) → offer reached the driver in 0.5 s →
