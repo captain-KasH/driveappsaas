@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/captain-KasH/driveappsaas/services/api/internal/booking"
+	"github.com/captain-KasH/driveappsaas/services/api/internal/comms"
 	"github.com/captain-KasH/driveappsaas/services/api/internal/fleet"
 	"github.com/captain-KasH/driveappsaas/services/api/internal/httpx"
 	"github.com/captain-KasH/driveappsaas/services/api/internal/identity"
@@ -25,6 +26,7 @@ func New(pool *pgxpool.Pool, bookings *booking.Service) http.Handler {
 		return httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	}))
 	identity.Register(mux, pool)
+	identity.RegisterAccount(mux, pool, comms.FromEnv())
 	ten := &tenancy.Service{Pool: pool}
 	ten.Register(mux)
 	(&fleet.Service{Pool: pool, Tenancy: ten}).Register(mux)

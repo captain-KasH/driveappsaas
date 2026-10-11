@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	_ "time/tzdata" // distroless has no zoneinfo; tenant timezones are validated with LoadLocation
 
 	"github.com/captain-KasH/driveappsaas/services/api/internal/db"
 	"github.com/captain-KasH/driveappsaas/services/api/internal/identity"

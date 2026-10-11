@@ -52,6 +52,7 @@ func TestMain(m *testing.M) {
 	if bypass {
 		panic("TAXIOS_TEST_DATABASE_URL must not bypass RLS, or isolation tests prove nothing")
 	}
+	os.Setenv("TAXIOS_DEV_TOKENS", "1") // tokens come back in responses so flows complete without a mail provider
 	bookings = server.NewBookings(appPool)
 	srv = httptest.NewServer(server.New(appPool, bookings))
 	code := m.Run()
@@ -164,6 +165,10 @@ func TestOnboardingJourney(t *testing.T) {
 		t.Fatalf("onboarding without pricing should be refused: %d %v", r.Status, r.Body)
 	}
 	configurePricing(t, &a)
+	if r := call(t, "POST", "/v1/tenants/"+a.ID+"/onboarding/complete", a.OwnerToken, nil); errCode(r) != "onboarding_incomplete" {
+		t.Fatalf("onboarding without a business profile should be refused: %d %v", r.Status, r.Body)
+	}
+	completeProfile(t, a)
 	r := call(t, "POST", "/v1/tenants/"+a.ID+"/onboarding/complete", a.OwnerToken, nil)
 	if r.Status != 200 || dig(r.Body, "tenant", "status") != "active" {
 		t.Fatalf("complete onboarding: %d %v", r.Status, r.Body)

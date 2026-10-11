@@ -73,11 +73,19 @@ func configurePricing(t *testing.T, f *tenantFixture) {
 	must(t, call(t, "POST", base+"/fare-rules", f.OwnerToken, rule), 201, "fare rule")
 }
 
+// completeProfile fills the business details the publish step requires.
+func completeProfile(t *testing.T, f tenantFixture) {
+	t.Helper()
+	must(t, call(t, "PATCH", "/v1/tenants/"+f.ID, f.OwnerToken, map[string]any{"legalName": "Colombo Cabs (Pvt) Ltd",
+		"registrationNo": "PV 12345", "contactEmail": "hello@colombocabs.test", "contactPhone": "0112345678"}), 200, "profile")
+}
+
 // operator is a fully onboarded, active tenant with pricing.
 func operator(t *testing.T) tenantFixture {
 	t.Helper()
 	f := newTenant(t, superAdminToken(t))
 	configurePricing(t, &f)
+	completeProfile(t, f)
 	must(t, call(t, "POST", "/v1/tenants/"+f.ID+"/onboarding/complete", f.OwnerToken, nil), 200, "onboarding")
 	return f
 }

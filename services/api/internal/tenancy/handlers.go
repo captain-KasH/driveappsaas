@@ -3,7 +3,6 @@ package tenancy
 import (
 	"errors"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
@@ -21,12 +20,15 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.Handle("POST /v1/platform/tenants", s.PlatformRoute(super, s.createTenant))
 	mux.Handle("GET /v1/platform/tenants", s.PlatformRoute(staff, s.listTenants))
 	mux.Handle("POST /v1/platform/tenants/{tenantID}/status", s.PlatformRoute(super, s.setTenantStatus))
+	mux.Handle("POST /v1/platform/tenants/{tenantID}/verification", s.PlatformRoute(super, s.verifyTenant))
+	mux.Handle("POST /v1/businesses", identity.RequireAuth(s.Pool, s.createBusiness))
 
 	mux.Handle("POST /v1/auth/accept-invite", httpx.Handler(s.acceptInvite))
 	mux.Handle("GET /v1/me", identity.RequireAuth(s.Pool, s.me))
 
 	mux.Handle("GET /v1/tenants/{tenantID}", s.TenantRoute(PermTenantRead, false, s.getTenant))
 	mux.Handle("PATCH /v1/tenants/{tenantID}", s.TenantRoute(PermTenantManage, true, s.updateTenant))
+	mux.Handle("GET /v1/tenants/{tenantID}/onboarding", s.TenantRoute(PermTenantRead, false, s.getChecklist))
 	mux.Handle("POST /v1/tenants/{tenantID}/onboarding/complete", s.TenantRoute(PermTenantManage, true, s.completeOnboarding))
 	mux.Handle("GET /v1/tenants/{tenantID}/members", s.TenantRoute(PermStaffRead, false, s.listMembers))
 	mux.Handle("POST /v1/tenants/{tenantID}/invitations", s.TenantRoute(PermStaffManage, true, s.inviteStaff))
@@ -37,33 +39,14 @@ func (s *Service) Register(mux *http.ServeMux) {
 
 func (s *Service) createTenant(r *http.Request, tx pgx.Tx, p identity.Principal) (Result, error) {
 	var in struct {
-		Slug         string `json:"slug"`
-		Name         string `json:"name"`
-		BusinessType string `json:"businessType"`
-		CountryCode  string `json:"countryCode"`
-		OwnerEmail   string `json:"ownerEmail"`
+		newTenantInput
+		OwnerEmail string `json:"ownerEmail"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return Result{}, err
 	}
-	if in.CountryCode == "" {
-		in.CountryCode = "LK"
-	}
-	t, err := scanTenant(tx.QueryRow(r.Context(), `INSERT INTO tenants(slug, name, business_type, country_code)
-		VALUES ($1,$2,$3,$4) RETURNING `+tenantCols,
-		strings.ToLower(strings.TrimSpace(in.Slug)), strings.TrimSpace(in.Name), in.BusinessType, strings.ToUpper(in.CountryCode)))
-	switch pgCode(err) {
-	case "":
-	case "23505":
-		return Result{}, httpx.Errorf(http.StatusConflict, "slug_taken", "slug %q is already in use", in.Slug)
-	case "23514", "22001":
-		return Result{}, httpx.Errorf(http.StatusUnprocessableEntity, "invalid_tenant",
-			"slug must be 3-63 lowercase letters, digits or dashes; name 1-200 chars; businessType must be a supported type")
-	default:
-		return Result{}, err
-	}
-	if err := audit.Record(r.Context(), tx, audit.Event{TenantID: t.ID, ActorUserID: p.UserID,
-		Action: "tenant.created", TargetType: "tenant", TargetID: t.ID}); err != nil {
+	t, err := insertTenant(r, tx, in.newTenantInput, p.UserID, true) // created by platform staff = verified
+	if err != nil {
 		return Result{}, err
 	}
 	inv, err := createInvitation(r.Context(), tx, t.ID, in.OwnerEmail, "owner", p.UserID, "")
@@ -74,7 +57,11 @@ func (s *Service) createTenant(r *http.Request, tx pgx.Tx, p identity.Principal)
 }
 
 func (s *Service) listTenants(r *http.Request, tx pgx.Tx, _ identity.Principal) (Result, error) {
-	rows, err := tx.Query(r.Context(), `SELECT `+tenantCols+` FROM tenants ORDER BY created_at DESC LIMIT 200`)
+	q := r.URL.Query()
+	rows, err := tx.Query(r.Context(), `SELECT `+tenantCols+` FROM tenants
+		WHERE ($1 = '' OR status = $1)
+		  AND ($2 = '' OR name ILIKE '%' || $2 || '%' OR slug ILIKE '%' || $2 || '%' OR legal_name ILIKE '%' || $2 || '%')
+		ORDER BY (status = 'pending_verification') DESC, created_at DESC LIMIT 200`, q.Get("status"), strings.TrimSpace(q.Get("q")))
 	if err != nil {
 		return Result{}, err
 	}
@@ -84,9 +71,10 @@ func (s *Service) listTenants(r *http.Request, tx pgx.Tx, _ identity.Principal) 
 
 // Platform-driven status transitions. onboarding->active is the owner's job (completeOnboarding).
 var platformTransitions = map[string][]string{
-	"onboarding": {"suspended", "closed"},
-	"active":     {"suspended", "closed"},
-	"suspended":  {"active", "closed"},
+	"onboarding":           {"suspended", "closed"},
+	"pending_verification": {"suspended", "closed"},
+	"active":               {"suspended", "closed"},
+	"suspended":            {"active", "closed"},
 }
 
 func (s *Service) setTenantStatus(r *http.Request, tx pgx.Tx, p identity.Principal) (Result, error) {
@@ -227,8 +215,9 @@ func (s *Service) me(w http.ResponseWriter, r *http.Request) error {
 	}
 	var list []membership
 	var name string
+	var verified bool
 	err := db.InTx(r.Context(), s.Pool, p.Scope(), func(tx pgx.Tx) error {
-		if err := tx.QueryRow(r.Context(), `SELECT full_name FROM users WHERE id=$1`, p.UserID).Scan(&name); err != nil {
+		if err := tx.QueryRow(r.Context(), `SELECT full_name, email_verified_at IS NOT NULL FROM users WHERE id=$1`, p.UserID).Scan(&name, &verified); err != nil {
 			return err
 		}
 		rows, err := tx.Query(r.Context(), `SELECT t.id, t.slug, t.name, t.status, m.role FROM tenant_memberships m
@@ -249,7 +238,7 @@ func (s *Service) me(w http.ResponseWriter, r *http.Request) error {
 		list = []membership{}
 	}
 	return httpx.WriteJSON(w, http.StatusOK, map[string]any{"user": map[string]any{
-		"id": p.UserID, "email": p.Email, "fullName": name, "platformRole": p.PlatformRole}, "memberships": list})
+		"id": p.UserID, "email": p.Email, "fullName": name, "platformRole": p.PlatformRole, "emailVerified": verified}, "memberships": list})
 }
 
 // --- tenant workspace ---
@@ -257,60 +246,6 @@ func (s *Service) me(w http.ResponseWriter, r *http.Request) error {
 func (s *Service) getTenant(r *http.Request, tx pgx.Tx, m Member) (Result, error) {
 	t, err := scanTenant(tx.QueryRow(r.Context(), `SELECT `+tenantCols+` FROM tenants WHERE id=$1`, m.TenantID))
 	return Result{http.StatusOK, map[string]any{"tenant": t, "myRole": m.Role}}, err
-}
-
-func (s *Service) updateTenant(r *http.Request, tx pgx.Tx, m Member) (Result, error) {
-	var in struct {
-		Name *string `json:"name"`
-	}
-	if err := httpx.DecodeJSON(r, &in); err != nil {
-		return Result{}, err
-	}
-	if in.Name == nil || strings.TrimSpace(*in.Name) == "" || len(*in.Name) > 200 {
-		return Result{}, httpx.Errorf(http.StatusUnprocessableEntity, "invalid_name", "name must be 1-200 characters")
-	}
-	t, err := scanTenant(tx.QueryRow(r.Context(), `UPDATE tenants SET name=$2, updated_at=now() WHERE id=$1 RETURNING `+tenantCols,
-		m.TenantID, strings.TrimSpace(*in.Name)))
-	if err != nil {
-		return Result{}, err
-	}
-	err = audit.Record(r.Context(), tx, audit.Event{TenantID: m.TenantID, ActorUserID: m.UserID,
-		Action: "tenant.updated", TargetType: "tenant", TargetID: m.TenantID, Metadata: map[string]any{"name": t.Name}})
-	return Result{http.StatusOK, map[string]any{"tenant": t}}, err
-}
-
-// completeOnboarding activates the tenant once it can actually price a ride:
-// at least one active zone, active category and fare rule.
-func (s *Service) completeOnboarding(r *http.Request, tx pgx.Tx, m Member) (Result, error) {
-	if m.Role != "owner" {
-		return Result{}, httpx.ErrForbidden
-	}
-	if m.TenantStatus != "onboarding" {
-		return Result{}, httpx.Errorf(http.StatusConflict, "invalid_transition", "tenant is already %s", m.TenantStatus)
-	}
-	var zones, categories, fares int
-	if err := tx.QueryRow(r.Context(), `SELECT (SELECT count(*) FROM service_zones WHERE active),
-		(SELECT count(*) FROM vehicle_categories WHERE active), (SELECT count(*) FROM fare_rules)`).Scan(&zones, &categories, &fares); err != nil {
-		return Result{}, err
-	}
-	var missing []string
-	for name, n := range map[string]int{"service zone": zones, "vehicle category": categories, "fare rule": fares} {
-		if n == 0 {
-			missing = append(missing, name)
-		}
-	}
-	if len(missing) > 0 {
-		sort.Strings(missing)
-		return Result{}, httpx.Errorf(http.StatusConflict, "onboarding_incomplete", "add at least one %s first", strings.Join(missing, ", "))
-	}
-	t, err := scanTenant(tx.QueryRow(r.Context(), `UPDATE tenants SET status='active', updated_at=now()
-		WHERE id=$1 AND status='onboarding' RETURNING `+tenantCols, m.TenantID))
-	if err != nil {
-		return Result{}, err
-	}
-	err = audit.Record(r.Context(), tx, audit.Event{TenantID: m.TenantID, ActorUserID: m.UserID,
-		Action: "tenant.onboarding_completed", TargetType: "tenant", TargetID: m.TenantID})
-	return Result{http.StatusOK, map[string]any{"tenant": t}}, err
 }
 
 func (s *Service) listMembers(r *http.Request, tx pgx.Tx, m Member) (Result, error) {

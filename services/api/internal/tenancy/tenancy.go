@@ -136,20 +136,36 @@ func (s *Service) PlatformRoute(roles []string, h func(*http.Request, pgx.Tx, id
 }
 
 type TenantDTO struct {
-	ID           string    `json:"id"`
-	Slug         string    `json:"slug"`
-	Name         string    `json:"name"`
-	BusinessType string    `json:"businessType"`
-	CountryCode  string    `json:"countryCode"`
-	Status       string    `json:"status"`
-	CreatedAt    time.Time `json:"createdAt"`
+	ID             string     `json:"id"`
+	Slug           string     `json:"slug"`
+	Name           string     `json:"name"`
+	BusinessType   string     `json:"businessType"`
+	CountryCode    string     `json:"countryCode"`
+	Status         string     `json:"status"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	LegalName      *string    `json:"legalName"`
+	RegistrationNo *string    `json:"registrationNo"`
+	TaxNo          *string    `json:"taxNo"`
+	ContactEmail   *string    `json:"contactEmail"`
+	ContactPhone   *string    `json:"contactPhone"`
+	BillingEmail   *string    `json:"billingEmail"`
+	Address        *string    `json:"address"`
+	Timezone       string     `json:"timezone"`
+	Currency       string     `json:"currency"`
+	Language       string     `json:"language"`
+	StatusReason   *string    `json:"statusReason"`
+	SubmittedAt    *time.Time `json:"submittedAt"`
+	VerifiedAt     *time.Time `json:"verifiedAt"`
 }
 
-const tenantCols = `id, slug, name, business_type, country_code, status, created_at`
+const tenantCols = `id, slug, name, business_type, country_code, status, created_at, legal_name, registration_no, tax_no,
+	contact_email, contact_phone, billing_email, address, timezone, currency, language, status_reason, submitted_at, verified_at`
 
 func scanTenant(row pgx.Row) (TenantDTO, error) {
 	var t TenantDTO
-	err := row.Scan(&t.ID, &t.Slug, &t.Name, &t.BusinessType, &t.CountryCode, &t.Status, &t.CreatedAt)
+	err := row.Scan(&t.ID, &t.Slug, &t.Name, &t.BusinessType, &t.CountryCode, &t.Status, &t.CreatedAt, &t.LegalName, &t.RegistrationNo,
+		&t.TaxNo, &t.ContactEmail, &t.ContactPhone, &t.BillingEmail, &t.Address, &t.Timezone, &t.Currency, &t.Language,
+		&t.StatusReason, &t.SubmittedAt, &t.VerifiedAt)
 	return t, err
 }
 
