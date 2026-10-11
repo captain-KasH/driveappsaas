@@ -220,6 +220,7 @@ func (s *Service) me(w http.ResponseWriter, r *http.Request) error {
 	p, _ := identity.FromContext(r.Context())
 	type membership struct {
 		TenantID     string `json:"tenantId"`
+		TenantSlug   string `json:"tenantSlug"`
 		TenantName   string `json:"tenantName"`
 		TenantStatus string `json:"tenantStatus"`
 		Role         string `json:"role"`
@@ -230,14 +231,14 @@ func (s *Service) me(w http.ResponseWriter, r *http.Request) error {
 		if err := tx.QueryRow(r.Context(), `SELECT full_name FROM users WHERE id=$1`, p.UserID).Scan(&name); err != nil {
 			return err
 		}
-		rows, err := tx.Query(r.Context(), `SELECT t.id, t.name, t.status, m.role FROM tenant_memberships m
+		rows, err := tx.Query(r.Context(), `SELECT t.id, t.slug, t.name, t.status, m.role FROM tenant_memberships m
 			JOIN tenants t ON t.id = m.tenant_id WHERE m.user_id = $1 ORDER BY t.name`, p.UserID)
 		if err != nil {
 			return err
 		}
 		list, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (membership, error) {
 			var m membership
-			return m, row.Scan(&m.TenantID, &m.TenantName, &m.TenantStatus, &m.Role)
+			return m, row.Scan(&m.TenantID, &m.TenantSlug, &m.TenantName, &m.TenantStatus, &m.Role)
 		})
 		return err
 	})
@@ -321,7 +322,7 @@ func (s *Service) listMembers(r *http.Request, tx pgx.Tx, m Member) (Result, err
 		Since    time.Time `json:"since"`
 	}
 	rows, err := tx.Query(r.Context(), `SELECT u.id, u.email, u.full_name, m.role, m.created_at FROM tenant_memberships m
-		JOIN users u ON u.id = m.user_id WHERE m.tenant_id = $1 ORDER BY m.created_at`, m.TenantID)
+		JOIN users u ON u.id = m.user_id WHERE m.tenant_id = $1 AND m.role <> 'passenger' ORDER BY m.created_at`, m.TenantID)
 	if err != nil {
 		return Result{}, err
 	}

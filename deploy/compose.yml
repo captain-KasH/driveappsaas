@@ -22,7 +22,9 @@ services:
     networks: [internal]
 
   migrate:
-    build: ../services/api
+    build:
+      context: ..
+      dockerfile: services/api/Dockerfile
     image: taxios-api:latest
     command: ["migrate"]
     environment:
