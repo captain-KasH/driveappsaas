@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.keystore
+*.jks
+/services/api/taxios-api
+node_modules/
+.next/
+dist/
+.DS_Store
+.claude/settings.local.json
