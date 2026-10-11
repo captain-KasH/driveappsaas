@@ -11,7 +11,7 @@ Evidence conventions: test names live in `services/api/internal/server/*_test.go
 | 6 | Audited platform-support access | ⬜ | | T-020 |
 | 7 | Email+password, sessions, logout, revocation | ✅ | `TestAuthSessions` | — |
 | 7 | Password reset, email verification | ✅ | `TestPasswordReset`, `TestSelfServiceOnboarding`; delivery needs SMTP creds (K-019), manual verification by staff meanwhile | T-040 |
-| 7 | Refresh / long-lived mobile sessions | ⬜ | | T-112 |
+| 7 | Refresh / long-lived mobile sessions | ✅ | sliding opaque sessions, per-device sign-out (`TestSessionManagement`) | — |
 | 7 | MFA | ⬜ | | T-006 |
 | 7 | Rate limiting / brute force | 🟡 | per-IP at edge only | T-005 |
 | 7 | Phone OTP | ⬜ | | T-041 ⛔ |

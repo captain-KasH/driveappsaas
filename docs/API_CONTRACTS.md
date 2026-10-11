@@ -16,8 +16,9 @@ Rate limits: enforced at the edge (see end of file); none in-app yet. Audit colu
 | Method & path | Auth / permission | Scope | Request | Success | Business errors | Audit |
 |---|---|---|---|---|---|---|
 | `GET /healthz` | none | — | — | 200 `{status}` | 503 `db_unavailable` | |
-| `POST /v1/auth/login` | none | — | `{email,password}` | 200 `{token,userId,platformRole}` | 401 `invalid_credentials` (same for unknown email) | |
+| `POST /v1/auth/login` | none | — | `{email,password,client?}` (`mobile` → 180-day session; default web 30 d; expiry slides while in use) | 200 `{token,userId,platformRole}` | 401 `invalid_credentials` (same for unknown email) | |
 | `POST /v1/auth/logout` | session | — | — | 204 | | |
+| `GET /v1/auth/sessions` · `DELETE /v1/auth/sessions/{id}` · `POST /v1/auth/logout-all` | session | user | — | 200 `{sessions[{id,client,userAgent,createdAt,lastSeenAt,expiresAt,current}]}` · 204 · 200 `{revoked}` (all except the current) | 404 (not yours) | |
 | `POST /v1/auth/accept-invite` | invitation token | platform (by token hash) | `{token,fullName,password}` | 200 `{token,tenantId,role}` | 404 `invalid_invitation`, 422 `weak_password`/`name_required`, 401 `invalid_credentials` (existing account, wrong password) | ✓ |
 | `GET /v1/me` | session | user | — | 200 `{user{…,emailVerified}, memberships[]}` | | |
 | `POST /v1/auth/register` | none | platform (new user) | `{email,fullName,password}` | 201 `{token,userId,emailVerified:false}` (+`verifyToken` only with `TAXIOS_DEV_TOKENS=1`) | 409 `email_taken`, 422 `invalid_email`/`name_required`/`weak_password` | ✓ |

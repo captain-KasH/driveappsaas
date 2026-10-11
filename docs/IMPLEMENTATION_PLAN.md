@@ -32,7 +32,7 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 |---|---|---|---|---|
 | T-002 / T-003 | Identity, tenancy, RLS, roles, invitations, audit | P0 | | ✅ |
 | T-110 | Email verification + password reset (hashed single-use tokens; SMTP from env or logged; `TAXIOS_DEV_TOKENS=1` returns tokens in tests) | P0 | tests: unverified can't create a business; reset token single-use | ✅ `TestSelfServiceOnboarding`, `TestPasswordReset` (2026-10-11) |
-| T-112 | Long-lived mobile sessions + refresh/rotation + "sign out everywhere" | P0 | | ⬜ |
+| T-112 | `client: mobile` login → 180-day session; sliding expiry on use (web 30 d); `GET/DELETE /v1/auth/sessions`, `POST /v1/auth/logout-all`; home page "Where you're signed in" | P0 | | ✅ `TestSessionManagement` (no refresh tokens: opaque sessions + sliding expiry cover the need, D-002) |
 | T-113 | `DELETE /members/{userID}`: staff only, owners only by owners, never the last owner or yourself; sessions revoked when they have no other business; audited | P0 | | ✅ `TestStaffRemoval` |
 | T-005 | Per-account login limiting in-app | P1 | 11th attempt → 429 | 🟡 |
 | T-006 | MFA (TOTP) for platform roles | P1 | | ⬜ |

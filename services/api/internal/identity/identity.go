@@ -22,7 +22,8 @@ import (
 )
 
 const (
-	SessionTTL     = 30 * 24 * time.Hour
+	SessionTTL     = 30 * 24 * time.Hour  // web
+	MobileTTL      = 180 * 24 * time.Hour // mobile apps stay signed in; expiry slides on use
 	tokenPrefix    = "txs_"
 	MinPasswordLen = 10
 )
@@ -32,6 +33,7 @@ type Principal struct {
 	Email        string
 	PlatformRole string // "", "super_admin", "support"
 	SessionID    string
+	Client       string // "web" | "mobile"
 }
 
 type ctxKey int
@@ -71,6 +73,11 @@ var ErrBadCredentials = httpx.Errorf(http.StatusUnauthorized, "invalid_credentia
 
 // Login verifies credentials and creates a session.
 func Login(ctx context.Context, pool *pgxpool.Pool, email, password, userAgent, ip string) (string, Principal, error) {
+	return LoginAs(ctx, pool, email, password, userAgent, ip, "web")
+}
+
+// LoginAs is Login for a named client ("web" or "mobile"; mobile sessions live longer).
+func LoginAs(ctx context.Context, pool *pgxpool.Pool, email, password, userAgent, ip, client string) (string, Principal, error) {
 	var p Principal
 	var hash *string
 	var disabled *time.Time
@@ -90,8 +97,15 @@ func Login(ctx context.Context, pool *pgxpool.Pool, email, password, userAgent, 
 	if platformRole != nil {
 		p.PlatformRole = *platformRole
 	}
-	token, err := CreateSession(ctx, pool, p.UserID, userAgent, ip)
+	token, err := CreateSessionAs(ctx, pool, p.UserID, userAgent, ip, client)
 	return token, p, err
+}
+
+func ttlFor(client string) time.Duration {
+	if client == "mobile" {
+		return MobileTTL
+	}
+	return SessionTTL
 }
 
 // Execer is satisfied by both the pool and a transaction.
@@ -100,13 +114,20 @@ type Execer interface {
 }
 
 func CreateSession(ctx context.Context, q Execer, userID, userAgent, ip string) (string, error) {
+	return CreateSessionAs(ctx, q, userID, userAgent, ip, "web")
+}
+
+func CreateSessionAs(ctx context.Context, q Execer, userID, userAgent, ip, client string) (string, error) {
+	if client != "mobile" {
+		client = "web"
+	}
 	token, hash := NewToken(tokenPrefix)
 	var ipArg any
 	if net.ParseIP(ip) != nil {
 		ipArg = ip
 	}
-	_, err := q.Exec(ctx, `INSERT INTO sessions(user_id, token_hash, expires_at, user_agent, ip) VALUES ($1,$2,$3,$4,$5)`,
-		userID, hash, time.Now().Add(SessionTTL), truncate(userAgent, 300), ipArg)
+	_, err := q.Exec(ctx, `INSERT INTO sessions(user_id, token_hash, expires_at, user_agent, ip, client, last_seen_at) VALUES ($1,$2,$3,$4,$5,$6,now())`,
+		userID, hash, time.Now().Add(ttlFor(client)), truncate(userAgent, 300), ipArg, client)
 	return token, err
 }
 
@@ -126,15 +147,26 @@ func Logout(ctx context.Context, pool *pgxpool.Pool, sessionID string) error {
 func Authenticate(ctx context.Context, pool *pgxpool.Pool, token string) (Principal, error) {
 	var p Principal
 	var platformRole *string
+	var expires time.Time
+	var lastSeen *time.Time
 	err := pool.QueryRow(ctx, `
-		SELECT u.id, u.email, u.platform_role, s.id FROM sessions s JOIN users u ON u.id = s.user_id
+		SELECT u.id, u.email, u.platform_role, s.id, s.client, s.expires_at, s.last_seen_at FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.disabled_at IS NULL`,
-		HashToken(token)).Scan(&p.UserID, &p.Email, &platformRole, &p.SessionID)
+		HashToken(token)).Scan(&p.UserID, &p.Email, &platformRole, &p.SessionID, &p.Client, &expires, &lastSeen)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, httpx.ErrUnauthenticated
 	}
+	if err != nil {
+		return p, err
+	}
 	if platformRole != nil {
 		p.PlatformRole = *platformRole
+	}
+	// Sliding expiry, written at most every 5 minutes per session: a session in use never expires;
+	// one left idle for its full TTL does.
+	if lastSeen == nil || time.Since(*lastSeen) > 5*time.Minute {
+		_, err = pool.Exec(ctx, `UPDATE sessions SET last_seen_at = now(), expires_at = greatest(expires_at, now() + $2::interval) WHERE id = $1`,
+			p.SessionID, ttlFor(p.Client))
 	}
 	return p, err
 }

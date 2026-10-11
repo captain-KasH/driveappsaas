@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Badge, ErrorBox, SignOut, Spinner, TopBar, useMe } from "@/components/ui";
+import Sessions from "@/components/Sessions";
 
 const roleLabel: Record<string, string> = {
   owner: "Owner", admin: "Admin", dispatcher: "Dispatcher", finance: "Finance", viewer: "Viewer", driver: "Driver", passenger: "Passenger",
@@ -49,6 +50,7 @@ export default function Home() {
                 </Link>
               </div>
             ))}
+            <Sessions />
           </div>
         )}
       </main>

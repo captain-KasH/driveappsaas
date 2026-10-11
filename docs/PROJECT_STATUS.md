@@ -6,7 +6,7 @@ _Last updated: 2026-10-11_
 Master prompt v2 adopted 2026-10-11 (`MASTER_PROMPT.md`, D-020…D-025). Audit: `PROJECT_AUDIT.md`;
 per-section status: `FEATURE_STATUS.md`; roadmap: `IMPLEMENTATION_PLAN.md` (M1–M14).
 The ride engine is verified end to end (`TestMVPJourney`) and the web app is live at https://taxios.packline.lk.
-**Milestone now: M4.** Done: T-110, T-120, T-121, T-123; T-124 partial. Also done: T-122, T-130 uploads, T-113 staff removal, T-126 customers + CSV exports. **Next task: T-112 (long-lived mobile sessions + sign-out-everywhere), then T-007 branding → M7 Expo apps.**
+**Milestone now: M4.** Done: T-110, T-120, T-121, T-123; T-124 partial. Also done: T-122, T-130 uploads, T-113 staff removal, T-126 customers + CSV exports. T-112 sessions done. **Next task: T-007 branding (logo/colours/contacts → public brand endpoint, booking page themed) → M7 Expo apps.**
 
 Baseline before M1 changes (2026-10-11, `make test-remote`, PostGIS 16-3.4 + Go 1.26 on the server):
 `ok internal/fare 0.014s · ok internal/server 14.741s` (18 tests, all pass).
