@@ -5,6 +5,16 @@ import (
 	"time"
 )
 
+func TestPassengerAppSignupIsMobileSession(t *testing.T) {
+	f := operator(t)
+	r := must(t, call(t, "POST", "/v1/public/tenants/"+f.Slug+"/passengers", "", map[string]any{"fullName": "App Rider",
+		"email": uniq("app-") + "@taxios.test", "phone": phone(), "password": password, "client": "mobile"}), 201, "app signup")
+	list := must(t, call(t, "GET", "/v1/auth/sessions", r.Body["token"].(string), nil), 200, "sessions")
+	if s := list.Body["sessions"].([]any)[0].(map[string]any); s["client"] != "mobile" {
+		t.Fatalf("app sign-up should open a mobile session: %v", s)
+	}
+}
+
 func TestSessionManagement(t *testing.T) {
 	email, web, _ := register(t, "Multi Device")
 	r := must(t, call(t, "POST", "/v1/auth/login", "", map[string]string{"email": email, "password": password, "client": "mobile"}), 200, "mobile login")

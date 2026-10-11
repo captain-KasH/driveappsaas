@@ -48,6 +48,7 @@ func (s *Service) registerPassenger(w http.ResponseWriter, r *http.Request) erro
 		Email    string `json:"email"`
 		Phone    string `json:"phone"`
 		Password string `json:"password"`
+		Client   string `json:"client"` // "mobile" from the apps (long-lived session)
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		return err
@@ -103,7 +104,7 @@ func (s *Service) registerPassenger(w http.ResponseWriter, r *http.Request) erro
 			TargetType: "customer", TargetID: customerID}); err != nil {
 			return err
 		}
-		token, err := identity.CreateSession(ctx, tx, userID, r.UserAgent(), identity.RemoteIP(r))
+		token, err := identity.CreateSessionAs(ctx, tx, userID, r.UserAgent(), identity.RemoteIP(r), in.Client)
 		out = map[string]any{"token": token, "tenantId": tenantID, "customerId": customerID}
 		return err
 	})

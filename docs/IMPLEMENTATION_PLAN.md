@@ -78,9 +78,9 @@ chain end to end; billing before online payments because v1 invoicing is manual 
 ## M7 — Passenger and driver applications (Expo, D-024)
 | ID | Task | P | Acceptance | Status |
 |---|---|---|---|---|
-| T-150 | `apps/mobile` Expo monorepo: `passenger`, `driver`, shared `packages/api` + `packages/brand`; runtime branding loaded from `/v1/public/tenants/{slug}/brand`; join by link/code | P0 | both apps build with EAS dev profile | ⬜ |
-| T-151 | Passenger app: auth, OTP (⛔ provider), places, categories, quote, book/schedule, tracking, cancel, history, receipts, rating, settings, deletion | P0 | journey steps on device | ⬜ |
-| T-152 | Driver app: auth, onboarding status, documents, online/offline, offers, trip steps, navigation hand-off, cash, earnings, background location (permitted, battery-aware) | P0 | | ⬜ |
+| T-150 | `apps/mobile`: ONE Expo SDK 57 codebase; `APP_VARIANT=passenger\|driver` picks the app, optional `TAXIOS_TENANT` pins a per-operator build (D-022); runtime brand from `/v1/public/tenants/{slug}`; session in the keychain | P0 | both variants run in Expo Go on the iOS simulator against prod | 🟡 runs in Expo Go (2026-10-11); EAS build profiles ⬜ (T-174) |
+| T-151 | Passenger app: operator code (or pinned), join/sign in (mobile session), address search + current location, vehicle, now/+30m/+1h/+2h/tomorrow, quote, idempotent booking, live status, driver card, cancel, history, receipt, rating, support/legal links. Missing: map + live driver pin, OTP ⛔, push, account deletion, date picker | P0 | journey steps on device | 🟡 code complete for the journey; on-device journey run pending a live test operator |
+| T-152 | Driver app: sign in, business picker, compliance status, online/offline, foreground GPS (10 s), offer countdown + accept/decline, trip steps, Google Maps hand-off, end-early reasons, cash confirmation, documents with camera/photo upload. Missing: background location (T-152b, needs dev build), earnings (T-132), push | P0 | | 🟡 same as T-151 |
 | T-153 | Push notifications (Expo push → FCM/APNs) through the notification abstraction (T-190) | P0 | | ⬜ |
 | T-154 | Mobile tests: permissions, deep links, session expiry, backgrounding, GPS failure, offline | P1 | | ⬜ |
 

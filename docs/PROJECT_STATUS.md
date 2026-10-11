@@ -6,7 +6,7 @@ _Last updated: 2026-10-11_
 Master prompt v2 adopted 2026-10-11 (`MASTER_PROMPT.md`, D-020…D-025). Audit: `PROJECT_AUDIT.md`;
 per-section status: `FEATURE_STATUS.md`; roadmap: `IMPLEMENTATION_PLAN.md` (M1–M14).
 The ride engine is verified end to end (`TestMVPJourney`) and the web app is live at https://taxios.packline.lk.
-**Milestone now: M4.** Done: T-110, T-120, T-121, T-123; T-124 partial. Also done: T-122, T-130 uploads, T-113 staff removal, T-126 customers + CSV exports. T-112 sessions and T-007 branding done (27 tests green on the server). **Next: M7 — `apps/mobile` Expo monorepo (T-150), passenger app (T-151), driver app (T-152).**
+**Milestone now: M4.** Done: T-110, T-120, T-121, T-123; T-124 partial. Also done: T-122, T-130 uploads, T-113 staff removal, T-126 customers + CSV exports. T-112 sessions and T-007 branding done. **M7 started:** `apps/mobile` (one Expo codebase → passenger + driver apps) runs in Expo Go on the iPhone 17 Pro simulator against production: passenger operator-code screen + unknown-code error verified, driver sign-in screen verified (2026-10-11). **Next:** walk the full journey on the simulator once a test operator exists on prod; then map view, push (T-153), EAS builds (T-174).
 
 Baseline before M1 changes (2026-10-11, `make test-remote`, PostGIS 16-3.4 + Go 1.26 on the server):
 `ok internal/fare 0.014s · ok internal/server 14.741s` (18 tests, all pass).
