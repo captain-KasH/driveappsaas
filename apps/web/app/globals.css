@@ -1,13 +1,14 @@
 :root {
-  --bg: #f6f6f3;
+  /* "Lagoon" — deep teal, deliberately unlike the yellow/black of Sri Lankan taxi brands. */
+  --bg: #f4f7f7;
   --surface: #ffffff;
-  --surface-2: #f0efe9;
-  --text: #17181a;
-  --muted: #5f6368;
-  --line: #e2e0d8;
-  --brand: #f2b705;       /* taxi yellow — fills only, never text on white */
-  --brand-ink: #1a1400;   /* text on brand fills */
-  --accent: #8a5a00;      /* links / focus on light surfaces (AA on white) */
+  --surface-2: #eaf1f0;
+  --text: #0f1a1c;
+  --muted: #52676a;
+  --line: #d9e3e2;
+  --brand: #0f766e;       /* filled CTAs, selected tab, logo — white text on it is 5.5:1 */
+  --brand-ink: #ffffff;   /* text on brand fills */
+  --accent: #0f766e;      /* links / focus */
   --ok: #1e7a3c;
   --ok-bg: #e5f4ea;
   --warn: #8a5a00;
@@ -22,13 +23,15 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #111214;
-    --surface: #1a1b1e;
-    --surface-2: #232428;
-    --text: #ececea;
-    --muted: #a3a6ab;
-    --line: #2e3034;
-    --accent: #f2c94c;
+    --bg: #0b1214;
+    --surface: #111b1e;
+    --surface-2: #182528;
+    --text: #e6eeee;
+    --muted: #97abad;
+    --line: #233234;
+    --brand: #2dd4bf;
+    --brand-ink: #042f2c;
+    --accent: #5eead4;
     --ok: #6fcf8f;
     --ok-bg: #16301f;
     --warn: #f2c94c;
@@ -88,7 +91,7 @@ textarea { min-height: 80px; }
   border-radius: 8px; padding: 9px 14px; min-height: 40px; border: 1px solid var(--line); background: var(--surface); color: var(--text); text-decoration: none; }
 .btn:hover { background: var(--surface-2); }
 .btn.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
-.btn.primary:hover { filter: brightness(0.96); }
+.btn.primary:hover { filter: brightness(1.08); }
 .btn.danger { color: var(--bad); }
 .btn.small { min-height: 32px; padding: 5px 10px; font-size: 0.85rem; }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }

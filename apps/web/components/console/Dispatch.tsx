@@ -5,7 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ago, api, newIdempotencyKey } from "@/lib/api";
 import { Badge, ErrorBox, usePoll, useAction } from "@/components/ui";
 import PlaceInput from "@/components/PlaceInput";
-import { Place, Marker, reverseGeocode } from "@/components/MapView";
+import { Place, Marker, reverseGeocode, MAP_COLORS } from "@/components/MapView";
 import { BookingDetail, BookingRow, BookingTable } from "./Bookings";
 import { Category, Ctx } from "./ctx";
 
@@ -25,7 +25,7 @@ export default function Dispatch({ ctx }: { ctx: Ctx }) {
 
   const markers = useMemo<Marker[]>(() => (board?.drivers ?? []).filter((d) => d.lat != null).map((d) => ({
     lat: d.lat!, lng: d.lng!, label: `${d.name} · ${d.availability}${d.locationFresh ? "" : " · location stale"}`,
-    color: !d.locationFresh ? "#9aa0a6" : d.availability === "available" ? "#1e7a3c" : "#c58a00",
+    color: !d.locationFresh ? MAP_COLORS.stale : d.availability === "available" ? MAP_COLORS.driver : MAP_COLORS.busy,
   })), [board]);
 
   return (
@@ -41,7 +41,7 @@ export default function Dispatch({ ctx }: { ctx: Ctx }) {
         </div>
         <div className="stack">
           <MapView className="map tall" markers={markers} fitKey={String(markers.length > 0)} />
-          <p className="muted small">Green = available · amber = on a trip · grey = location older than 2 minutes (not live). Updated {board ? ago(board.generatedAt) : "…"}.</p>
+          <p className="muted small">Teal = available · amber = on a trip · grey = location older than 2 minutes (not live). Updated {board ? ago(board.generatedAt) : "…"}.</p>
           {open && <AssignPanel key={open} base={base} id={open} drivers={board?.drivers ?? []} onDone={refresh} />}
           {open && <BookingDetail key={"d" + open} ctx={ctx} id={open} onChange={refresh} />}
           <div className="card">
@@ -111,8 +111,8 @@ function PhoneBooking({ ctx, onBooked }: { ctx: Ctx; onBooked: () => void }) {
   if (!show) return <div className="card row"><div><h2 style={{ margin: 0 }}>Phone booking</h2><p className="muted small" style={{ margin: 0 }}>Book for a caller.</p></div><button className="btn primary right" onClick={openForm}>New booking</button></div>;
 
   const markers: Marker[] = [
-    ...(pickup ? [{ ...pickup, label: "Pickup", color: "#1e7a3c" }] : []),
-    ...(dropoff ? [{ ...dropoff, label: "Drop-off", color: "#b3261e" }] : []),
+    ...(pickup ? [{ ...pickup, label: "Pickup", color: MAP_COLORS.pickup }] : []),
+    ...(dropoff ? [{ ...dropoff, label: "Drop-off", color: MAP_COLORS.dropoff }] : []),
   ];
   return (
     <form className="card stack" onSubmit={(e) => {

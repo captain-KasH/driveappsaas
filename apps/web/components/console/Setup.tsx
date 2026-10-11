@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, money } from "@/lib/api";
 import { ErrorBox, Spinner, useAction } from "@/components/ui";
-import { circlePolygon, Pt } from "@/components/MapView";
+import { circlePolygon, Pt, MAP_COLORS } from "@/components/MapView";
 import { Category, Ctx, Zone, can, fromMinor, toMinor } from "./ctx";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false, loading: () => <div className="map" /> });
@@ -97,7 +97,7 @@ function ZoneCard({ base, zones, editable, onChange }: { base: string; zones: Zo
     <div className="card stack">
       <h2>Service zones</h2>
       <p className="muted small">Pickups must fall inside an active zone. {editable && "Tap the map to place a zone centre, then set its radius."}</p>
-      <MapView className="map" polygons={polygons} markers={centre ? [{ ...centre, label: "Zone centre", color: "#8a5a00" }] : []}
+      <MapView className="map" polygons={polygons} markers={centre ? [{ ...centre, label: "Zone centre", color: MAP_COLORS.zone }] : []}
         onPick={editable ? setCentre : undefined} fitKey={String(zones.length)} />
       {zones.length > 0 && <div className="row small">{zones.map((z) => <span key={z.id} className="badge">{z.name}</span>)}</div>}
       {editable && (

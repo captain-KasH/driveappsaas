@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { ago, api, ApiError, km, Me, mins, money, newIdempotencyKey, token, when } from "@/lib/api";
 import { Badge, ErrorBox, Spinner, TopBar, useAction, usePoll } from "@/components/ui";
 import PlaceInput from "@/components/PlaceInput";
-import { Marker, Place, reverseGeocode } from "@/components/MapView";
+import { Marker, Place, reverseGeocode, MAP_COLORS } from "@/components/MapView";
 import FareLines, { Breakdown } from "@/components/FareLines";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false, loading: () => <div className="map" /> });
@@ -146,8 +146,8 @@ function Booking({ brand }: { brand: Brand }) {
   if (activeId) return <ActiveBooking base={base} id={activeId} onClose={() => { setActiveId(null); loadHistory(); }} />;
 
   const markers: Marker[] = [
-    ...(pickup ? [{ ...pickup, label: "Pickup", color: "#1e7a3c" }] : []),
-    ...(dropoff ? [{ ...dropoff, label: "Drop-off", color: "#b3261e" }] : []),
+    ...(pickup ? [{ ...pickup, label: "Pickup", color: MAP_COLORS.pickup }] : []),
+    ...(dropoff ? [{ ...dropoff, label: "Drop-off", color: MAP_COLORS.dropoff }] : []),
   ];
   return (
     <div className="split">
@@ -203,8 +203,8 @@ function ActiveBooking({ base, id, onClose }: { base: string; id: string; onClos
 
   const markers = useMemo<Marker[]>(() => {
     if (!b) return [];
-    const m: Marker[] = [{ ...b.pickup, label: "Pickup", color: "#1e7a3c" }, { ...b.dropoff, label: "Drop-off", color: "#b3261e" }];
-    if (b.driver?.lat != null && b.driver.locationFresh) m.push({ lat: b.driver.lat, lng: b.driver.lng, label: `${b.driver.firstName} (driver)`, color: "#f2b705" });
+    const m: Marker[] = [{ ...b.pickup, label: "Pickup", color: MAP_COLORS.pickup }, { ...b.dropoff, label: "Drop-off", color: MAP_COLORS.dropoff }];
+    if (b.driver?.lat != null && b.driver.locationFresh) m.push({ lat: b.driver.lat, lng: b.driver.lng, label: `${b.driver.firstName} (driver)`, color: MAP_COLORS.driver });
     return m;
   }, [b]);
 

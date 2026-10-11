@@ -9,6 +9,10 @@ export type Marker = Pt & { label: string; color: string };
 
 const COLOMBO: Pt = { lat: 6.9271, lng: 79.8612 };
 
+// Map colours live here so the theme has one owner. Pickup blue / drop-off red are the
+// convention passengers already know; teal is the Taxios brand (drivers, zones).
+export const MAP_COLORS = { pickup: "#2563eb", dropoff: "#c62828", driver: "#0f766e", zone: "#0f766e", busy: "#c58a00", stale: "#9aa0a6" };
+
 /**
  * Leaflet map with OpenStreetMap tiles. ponytail: OSM's public tiles and Nominatim are for low
  * volume only (their usage policies); swap for the chosen maps provider in T-013b / K-010.
@@ -59,7 +63,7 @@ export default function MapView({
     g.clearLayers();
     const bounds: L.LatLngExpression[] = [];
     for (const poly of polygons) {
-      const gj = Lx.geoJSON(poly as any, { style: { color: "#8a5a00", weight: 2, fillOpacity: 0.08 } }).addTo(g);
+      const gj = Lx.geoJSON(poly as any, { style: { color: MAP_COLORS.zone, weight: 2, fillOpacity: 0.1 } }).addTo(g);
       const b = gj.getBounds();
       if (b.isValid()) bounds.push(b.getNorthEast(), b.getSouthWest());
     }
