@@ -1,10 +1,13 @@
 # Production stack for taxios.packline.lk on the packline server (/data/apps/taxios).
 # Run via deploy/deploy.sh. Secrets come from deploy/.env (never committed; see deploy/.env.example).
 # The API joins packline's nginx network as `taxios-api` (its only alias there); no host ports are published.
+# Every service, container and image is prefixed `taxios-`: the server also runs packline and its voice AI,
+# whose stacks already own generic names (api, db, web, …). Names must never collide with theirs.
 name: taxios
 
 services:
-  db:
+  taxios-db:
+    container_name: taxios-db
     image: postgis/postgis:16-3.4
     restart: unless-stopped
     environment:
@@ -13,7 +16,7 @@ services:
       POSTGRES_DB: taxios
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:?}
     volumes:
-      - db:/var/lib/postgresql/data
+      - db:/var/lib/postgresql/data # volume key kept as `db` (= docker volume `taxios_db`) so existing data survives
       - ./initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U taxios_owner -d taxios"]
@@ -21,16 +24,17 @@ services:
       retries: 20
     networks: [internal]
 
-  migrate:
+  taxios-migrate:
+    container_name: taxios-migrate
     build:
       context: ..
       dockerfile: services/api/Dockerfile
     image: taxios-api:latest
     command: ["migrate"]
     environment:
-      MIGRATE_DATABASE_URL: postgres://taxios_owner:${OWNER_DB_PASSWORD}@db:5432/taxios?sslmode=disable
+      MIGRATE_DATABASE_URL: postgres://taxios_owner:${OWNER_DB_PASSWORD}@taxios-db:5432/taxios?sslmode=disable
     depends_on:
-      db: { condition: service_healthy }
+      taxios-db: { condition: service_healthy }
     networks: [internal]
     restart: "no"
 
@@ -41,7 +45,7 @@ services:
     container_name: taxios-api
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://taxios_app:${APP_DB_PASSWORD}@db:5432/taxios?sslmode=disable
+      DATABASE_URL: postgres://taxios_app:${APP_DB_PASSWORD}@taxios-db:5432/taxios?sslmode=disable
       ADDR: ":8080"
       TAXIOS_TRUST_PROXY: "1"
       TAXIOS_PUBLIC_URL: https://taxios.packline.lk
@@ -52,15 +56,16 @@ services:
       TAXIOS_SMTP_PASSWORD: ${TAXIOS_SMTP_PASSWORD:-}
       TAXIOS_EMAIL_FROM: ${TAXIOS_EMAIL_FROM:-Taxios <no-reply@packline.lk>}
     depends_on:
-      db: { condition: service_healthy }
-      migrate: { condition: service_completed_successfully }
+      taxios-db: { condition: service_healthy }
+      taxios-migrate: { condition: service_completed_successfully }
     networks: [internal, edge]
 
 volumes:
   db:
 
 networks:
-  internal: {}
+  internal:
+    name: taxios_internal
   edge:
     name: packlink_packlink
     external: true

@@ -7,7 +7,7 @@ access is **only ever** `ssh appuser@164.68.97.219` — never root, never sudo.
 | Piece | Where |
 |---|---|
 | Code checkout | `/data/apps/taxios` (git clone of `captain-KasH/driveappsaas`, `main`) |
-| Stack | `deploy/compose.yml`, compose project `taxios`: `db` (postgis/postgis:16-3.4, volume `taxios_db`), `migrate` (one-shot), `api` |
+| Stack | `deploy/compose.yml`, compose project `taxios`: `taxios-db` (postgis/postgis:16-3.4, volume `taxios_db`), `taxios-migrate` (one-shot), `taxios-api`. **Every name is `taxios-`-prefixed** (D-026): the server also runs packline and its voice AI |
 | Secrets | `/data/apps/taxios/deploy/.env` (chmod 600, generated on first deploy, never printed or committed) |
 | Edge | packline's `packlink-nginx` container. Vhost in the **packline repo** `ops/nginx/nginx.conf` (`taxios.packline.lk` block). The API joins network `packlink_packlink` as `taxios-api:8080`; no host ports published |
 | DNS / TLS | Cloudflare (packline.lk zone, account kavindaroc@): `A taxios → 164.68.97.219`, **Proxied**. SSL mode **Full** → origin uses packline's self-signed cert; Cloudflare's edge cert covers `*.packline.lk` |

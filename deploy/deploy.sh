@@ -16,9 +16,14 @@ fi
 deploy/test.sh
 
 compose() { docker compose -f deploy/compose.yml --env-file deploy/.env "$@"; }
-compose build migrate
-compose up -d db
-compose run --rm migrate
+compose build taxios-migrate
+# One-time rename (D-026): the old unprefixed db/migrate containers must be gone before the new
+# `taxios-db` mounts the same volume — two Postgres on one data dir would corrupt it.
+for old in taxios-db-1 taxios-migrate-1; do
+  docker container inspect "$old" >/dev/null 2>&1 && { echo "removing legacy container $old"; docker rm -f "$old" >/dev/null; }
+done
+compose up -d taxios-db
+compose run --rm taxios-migrate
 compose up -d --no-deps --force-recreate --remove-orphans taxios-api
 
 for i in $(seq 1 30); do

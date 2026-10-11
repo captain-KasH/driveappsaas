@@ -69,7 +69,7 @@ Verified live: landing, sign-in, unknown operator message, all assets 200, no un
 - DNS: taxios.packline.lk and packline.lk resolve to Cloudflare from 8.8.8.8, 1.1.1.1 and 9.9.9.9.
 - packline.lk / www / `/healthz` → 200 with packline's own page; taxios.packline.lk `/`, `/login/`, `/healthz` → 200 Taxios.
 - Shared network aliases: `api` → packline only, `taxios-api` → Taxios only; 30/30 packline `/v1/flash-sales/active` → 200.
-- `deploy.sh` end to end: tests ok → `Deploy succeeded: cbdc510`; containers `taxios-api`, `taxios-db-1` healthy; nginx config valid.
+- `deploy.sh` end to end: tests ok → `Deploy succeeded: cbdc510`; containers `taxios-api`, `taxios-db-1` (renamed `taxios-db` in D-026) healthy; nginx config valid.
 
 ## Not built yet
 Mobile (React Native) apps; notifications/realtime; online payments; billing, add-ons, usage metering;

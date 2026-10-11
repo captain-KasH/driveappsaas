@@ -1,8 +1,9 @@
 # Throwaway test stack: fresh PostGIS on tmpfs + Go test runner. Used by deploy/test.sh.
 name: taxios-test
 
+# Service names are prefixed too (shared server, see compose.yml).
 services:
-  db:
+  taxios-test-db:
     image: postgis/postgis:16-3.4
     environment:
       POSTGRES_USER: owner
@@ -16,24 +17,24 @@ services:
       interval: 2s
       retries: 30
 
-  test:
+  taxios-test-go:
     image: golang:1.26-alpine
     working_dir: /src
     environment:
       CGO_ENABLED: "0"
-      TAXIOS_TEST_MIGRATE_URL: postgres://owner:owner@db:5432/taxios_test?sslmode=disable
-      TAXIOS_TEST_DATABASE_URL: postgres://taxios_app:test_app@db:5432/taxios_test?sslmode=disable
+      TAXIOS_TEST_MIGRATE_URL: postgres://owner:owner@taxios-test-db:5432/taxios_test?sslmode=disable
+      TAXIOS_TEST_DATABASE_URL: postgres://taxios_app:test_app@taxios-test-db:5432/taxios_test?sslmode=disable
     volumes:
       - ../services/api:/src
       - gomod:/go/pkg/mod
       - gobuild:/root/.cache/go-build
     command: ["sh", "-c", "go vet ./... && test -z \"$$(gofmt -l .)\" && go test -count=1 ${TEST_ARGS:-} ./..."]
     depends_on:
-      db: { condition: service_healthy }
+      taxios-test-db: { condition: service_healthy }
 
   # Web typecheck + production build (T-104). node_modules lives in a named volume so the
   # rsync'd tree stays clean and `npm ci` is fast on repeat runs.
-  web:
+  taxios-test-web:
     image: node:22-alpine
     working_dir: /web
     environment: { NEXT_TELEMETRY_DISABLED: "1" }
