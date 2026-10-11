@@ -1,0 +1,4 @@
+# Filled by the Docker build from apps/web/out (next build). Only this file and .keep are tracked.
+*
+!.gitignore
+!.keep
